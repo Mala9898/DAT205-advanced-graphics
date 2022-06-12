@@ -22,7 +22,7 @@ void toggle_mouse ();
 void toggle_wireframe();
 
 using std::vector, std::string;
-using glm::vec3, glm::mat4, glm::scale, glm::translate;
+using glm::vec3,glm::vec4, glm::mat4, glm::scale, glm::translate;
 
 FreeCamera camera = nullptr;
 bool hideMouse = false;
@@ -33,7 +33,6 @@ GLFWwindow *window = nullptr;
 int main() {
 
     window = init_gl();
-    std::cout << "test!" << std::endl;
     print("debug mode activated");
 
     bool show_demo_window = true;
@@ -49,6 +48,7 @@ int main() {
     ImGuiIO& io = init_IMGUI(window);
     float offset = 0.0f;
 
+    // --- tesselation line
 
 
     while(!glfwWindowShouldClose(window)){
@@ -94,6 +94,9 @@ int main() {
         glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
         mat4 MVP = projection*view*model;
         gizmo.draw(MVP);
+
+        // --- tesselation
+        // glDrawArrays(GL_PATCHES, 0, 4);
 
 
 
