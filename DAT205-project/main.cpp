@@ -1,5 +1,11 @@
 
 #include <iostream>
+#include <vector>
+
+// ----- image loading -----------
+#define STB_IMAGE_IMPLEMENTATION
+#include "external/stb_image.h"
+// -------------------------------
 
 #include "includes/external/glm/glm.hpp"
 #include "includes/external/glm/gtc/matrix_transform.hpp"
@@ -13,12 +19,14 @@
 void mouse_callback(GLFWwindow* window, double x, double y);
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void toggle_mouse ();
+void toggle_wireframe();
 
 using std::vector, std::string;
 using glm::vec3, glm::mat4, glm::scale, glm::translate;
 
 FreeCamera camera = nullptr;
 bool hideMouse = false;
+bool wireframe = false;
 
 GLFWwindow *window = nullptr;
 
@@ -41,6 +49,8 @@ int main() {
     ImGuiIO& io = init_IMGUI(window);
     float offset = 0.0f;
 
+
+
     while(!glfwWindowShouldClose(window)){
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -58,11 +68,14 @@ int main() {
         //     ImGui::ShowDemoWindow(&show_demo_window);
         {
             ImGui::Begin("MY WINDOW!");                          // Create a window called "Hello, world!" and append into it.
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            // ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            // ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
 
             if (ImGui::Button("Hide mouse"))
                 toggle_mouse();
+            if (ImGui::Button("Wireframe"))
+                toggle_wireframe();
             ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -70,6 +83,7 @@ int main() {
         }
 
         {
+            // --- camera
             GLdouble xPos, yPos;
             glfwGetCursorPos(window, &xPos, &yPos);
             camera.handleMouse(xPos, yPos);
@@ -78,7 +92,11 @@ int main() {
         // ---- <scene> ----
         glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
         glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
-        gizmo.draw(projection*view*model);
+        mat4 MVP = projection*view*model;
+        gizmo.draw(MVP);
+
+
+
         // ---- </scene> ----
         glBindVertexArray(0);
 
@@ -104,6 +122,13 @@ void toggle_mouse () {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // hide mouse
     else
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // hide mouse
+}
+void toggle_wireframe() {
+    wireframe = !wireframe;
+    if(wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {

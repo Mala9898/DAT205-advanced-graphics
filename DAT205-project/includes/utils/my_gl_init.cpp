@@ -19,6 +19,8 @@ GLFWwindow* init_gl(const std::string & window_title, int width, int height) {
     glewExperimental = true;
     glewInit();
 
+    glEnable(GL_DEPTH_TEST); // enable depth buffer (so fragments don't overwrite each other)
+
     return window;
 }
 ImGuiIO& init_IMGUI(GLFWwindow * window) {
