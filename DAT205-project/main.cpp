@@ -78,14 +78,16 @@ int main() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     ParticleSystem ps (500, false);
-    ps.gravity = vec3(0.0f,0.1f,0.0f);
-    ps.lifetime = 3.0f;
-    ps.setVelocity(0.1f, 1.0f);
-    // ps.setPhi(0,3.14f);
-    ps.setTheta(0.0f, 3.14f/4.0f);
-    ps.growSize = true;
-    ps.continuous = true;
-    ps.generate("textures/fire3.png");
+    {
+        ps.gravity = vec3(0.0f,0.1f,0.0f);
+        ps.lifetime = 3.0f;
+        ps.setVelocity(0.1f, 1.0f);
+        // ps.setPhi(0,3.14f);
+        ps.setTheta(0.0f, 3.14f/4.0f);
+        ps.growSize = true;
+        ps.continuous = true;
+        ps.generate("textures/fire3.png");
+    }
 
 
     while(!glfwWindowShouldClose(window)){
@@ -93,6 +95,8 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwPollEvents();
         camera.setStatus(!io.WantCaptureMouse);
+
+        // --- IMGUI
         {
             // Start the Dear ImGui frame
             ImGui_ImplOpenGL3_NewFrame();
