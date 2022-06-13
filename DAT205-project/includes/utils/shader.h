@@ -7,24 +7,44 @@
 #include <iostream>
 #include "external/glm/glm.hpp"
 #include "external/glm/gtc/type_ptr.hpp"
+
 enum class ShaderType {
     vertex, fragment,
     tesc, tese
 };
-// credit: learnopengl.com
+
 class Shader {
 public:
     unsigned int ID;
+    Shader(){
+
+    }
     Shader(const char* vertexPath, const char* fragmentPath){
-        std::cout << "--vert:" << std::endl;
         unsigned int vertex = compileShader(vertexPath, ShaderType::vertex);
-        std::cout << "--frag:" << std::endl;
         unsigned int fragment = compileShader(fragmentPath, ShaderType::fragment);
 
         // shader Program
         ID = glCreateProgram();
         glAttachShader(ID, vertex);
         glAttachShader(ID, fragment);
+        glLinkProgram(ID);
+        checkCompileErrors(ID, "PROGRAM");
+        // delete the shaders as they're linked into our program now and no longer necessary
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+    }
+    Shader(const char* vertexPath, const char* fragmentPath, const char* tesPath,const char* tcsPath){
+        unsigned int vertex = compileShader(vertexPath, ShaderType::vertex);
+        unsigned int fragment = compileShader(fragmentPath, ShaderType::fragment);
+        unsigned int tes = compileShader(tesPath, ShaderType::tese);
+        unsigned int tcs = compileShader(tcsPath, ShaderType::tesc);
+
+        // shader Program
+        ID = glCreateProgram();
+        glAttachShader(ID, vertex);
+        glAttachShader(ID, fragment);
+        glAttachShader(ID, tes);
+        glAttachShader(ID, tcs);
         glLinkProgram(ID);
         checkCompileErrors(ID, "PROGRAM");
         // delete the shaders as they're linked into our program now and no longer necessary
@@ -41,7 +61,7 @@ public:
             stringStream << fileStream.rdbuf();
             fileStream.close();
             code = stringStream.str();
-            std::cout << code << std::endl;
+            // std::cout << code << std::endl;
         } catch (std::ifstream::failure& e) {
             std::cout << "[ERROR SHADER]: failed to read file: " << e.what() << std::endl;
         }
@@ -51,10 +71,16 @@ public:
         } else if (shaderType == ShaderType::fragment) {
             shaderUnitID = glCreateShader(GL_FRAGMENT_SHADER);
         }
+        else if (shaderType == ShaderType::tesc) {
+            shaderUnitID = glCreateShader(GL_TESS_CONTROL_SHADER);
+        }
+        else if (shaderType == ShaderType::tese) {
+            shaderUnitID = glCreateShader(GL_TESS_EVALUATION_SHADER);
+        }
         const char * ccode = code.c_str();
         glShaderSource(shaderUnitID, 1, &ccode, NULL);
         glCompileShader(shaderUnitID);
-        checkCompileErrors(shaderUnitID, "NOT-PROGRAM");
+        checkCompileErrors(shaderUnitID, "file: "+std::string(file));
 
         return shaderUnitID;
     }
@@ -78,15 +104,16 @@ public:
         glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &(vec)[0]);
     }
     void setMat4(const std::string &name, const glm::mat4* mat) {
-        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1,GL_FALSE, glm::value_ptr(*mat));
+        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(*mat));
     }
     void setVec2(const std::string &name, const glm::vec2 &value) const {
         glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
     }
+    void setVec4(const std::string &name, const glm::vec4 &value) const {
+        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
 
 private:
-    // utility function for checking shader compilation/linking errors.
-    // ------------------------------------------------------------------------
     void checkCompileErrors(unsigned int shader, std::string type)
     {
         int success;
@@ -95,7 +122,7 @@ private:
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
             if (!success){
                 glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-                std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- -- " << std::endl;
+                std::cout << "[ERROR] SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- -- " << std::endl;
             }
         }
         else{

@@ -1,3 +1,5 @@
+#version 410 core
+
 layout (isolines) in;
 
 uniform mat4 MVP;

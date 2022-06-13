@@ -33,7 +33,7 @@ add_executable(project main.cpp
 
         includes/external/imgui/imgui.cpp includes/external/imgui/imgui_demo.cpp includes/external/imgui/imgui_draw.cpp
         includes/external/imgui/imgui_tables.cpp includes/external/imgui/imgui_widgets.cpp
-        includes/external/imgui/imgui_impl_glfw.cpp includes/external/imgui/imgui_impl_opengl3.cpp includes/utils/free_camera.h includes/utils/xyz_gizmo.h includes/utils/shader.h)
+        includes/external/imgui/imgui_impl_glfw.cpp includes/external/imgui/imgui_impl_opengl3.cpp includes/utils/free_camera.h includes/utils/xyz_gizmo.h includes/utils/shader.h includes/systems/ParticleSystem.h)
 
 target_link_libraries(project glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})
 include_directories(${PROJECT_SOURCE_DIR}/includes) # add /includes as search path for #include "whatever.h"
