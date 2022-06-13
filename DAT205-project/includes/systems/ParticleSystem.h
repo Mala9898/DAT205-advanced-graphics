@@ -11,6 +11,7 @@ private:
     std::random_device randomDevice;
     std::mt19937 generator;
     std::uniform_real_distribution<float> unifDist;
+    GLuint tex;
 
     Shader particleShader;
     const char * vertShaderPath = "shaders/particle/particle.vert";
@@ -73,10 +74,9 @@ public:
         glVertexAttribDivisor(1,1);
 
         // --- texture
-        glActiveTexture(GL_TEXTURE0);
+        glActiveTexture(GL_TEXTURE7);
         int width, height, nChannels;
         unsigned char *imgdata = stbi_load(texturePath,&width, &height, &nChannels, 0);
-        GLuint tex = 0;
         if( imgdata != nullptr ) {
             glGenTextures(1, &tex);
             glBindTexture(GL_TEXTURE_2D, tex);
@@ -89,7 +89,7 @@ public:
             stbi_image_free(imgdata);
         }
         particleShader.use();
-        particleShader.setInt("tex", 0);
+        particleShader.setInt("tex", 7);
         particleShader.setFloat("lifetime", lifetime);
         particleShader.setVec3("size", glm::vec3(particleSize, sizeStart, sizeEnd));
         particleShader.setVec3("gravity", gravity);
@@ -104,6 +104,8 @@ public:
         particleShader.setMat4("MV", &MV);
         particleShader.setMat4("projection", &projection);
         particleShader.setFloat("time", glfwGetTime()-startTime);
+        glActiveTexture(GL_TEXTURE7);
+        glBindTexture(GL_TEXTURE_2D, tex);
         glBindVertexArray(particlesVAO);
         glDrawArraysInstanced(GL_TRIANGLES, 0, 6, numParticles);
         glBindVertexArray(0);

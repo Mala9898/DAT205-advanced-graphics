@@ -17,6 +17,7 @@
 #include "includes/utils/free_camera.h"
 #include "includes/utils/xyz_gizmo.h"
 #include "includes/systems/ParticleSystem.h"
+#include "includes/utils/Model.h"
 
 void mouse_callback(GLFWwindow* window, double x, double y);
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -89,6 +90,10 @@ int main() {
         ps.generate("textures/fire3.png");
     }
 
+    Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
+    string modelName = "models/backpack.obj";
+    Model backpack(&modelName[0]);
+
 
     while(!glfwWindowShouldClose(window)){
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -130,6 +135,13 @@ int main() {
 
         mat4 MV = view*model;
         ps.draw(MV, projection);
+
+        // --- render model
+        modelShader.use();
+        modelShader.setMat4("model", &model);
+        modelShader.setMat4("view", &view);
+        modelShader.setMat4("projection", &projection);
+        backpack.Draw(modelShader);
 
         // ------------------ </scene> ------------------
         glBindVertexArray(0);

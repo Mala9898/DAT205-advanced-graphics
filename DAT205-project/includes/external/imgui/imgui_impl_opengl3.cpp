@@ -140,7 +140,7 @@
 #include "imgui_impl_opengl3_loader.h"
 #endif
 
-// Vertex arrays are not supported on ES2/WebGL1 unless Emscripten which uses an extension
+// VertexStruct arrays are not supported on ES2/WebGL1 unless Emscripten which uses an extension
 #ifndef IMGUI_IMPL_OPENGL_ES2
 #define IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY
 #elif defined(__EMSCRIPTEN__)
@@ -185,7 +185,7 @@ struct ImGui_ImplOpenGL3_Data
     GLuint          ShaderHandle;
     GLint           AttribLocationTex;       // Uniforms location
     GLint           AttribLocationProjMtx;
-    GLuint          AttribLocationVtxPos;    // Vertex attributes location
+    GLuint          AttribLocationVtxPos;    // VertexStruct attributes location
     GLuint          AttribLocationVtxUV;
     GLuint          AttribLocationVtxColor;
     unsigned int    VboHandle, ElementsHandle;
@@ -687,43 +687,43 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
         "#ifdef GL_ES\n"
         "    precision mediump float;\n"
         "#endif\n"
-        "uniform sampler2D Texture;\n"
+        "uniform sampler2D TextureStruct;\n"
         "varying vec2 Frag_UV;\n"
         "varying vec4 Frag_Color;\n"
         "void main()\n"
         "{\n"
-        "    gl_FragColor = Frag_Color * texture2D(Texture, Frag_UV.st);\n"
+        "    gl_FragColor = Frag_Color * texture2D(TextureStruct, Frag_UV.st);\n"
         "}\n";
 
     const GLchar* fragment_shader_glsl_130 =
-        "uniform sampler2D Texture;\n"
+        "uniform sampler2D TextureStruct;\n"
         "in vec2 Frag_UV;\n"
         "in vec4 Frag_Color;\n"
         "out vec4 Out_Color;\n"
         "void main()\n"
         "{\n"
-        "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+        "    Out_Color = Frag_Color * texture(TextureStruct, Frag_UV.st);\n"
         "}\n";
 
     const GLchar* fragment_shader_glsl_300_es =
         "precision mediump float;\n"
-        "uniform sampler2D Texture;\n"
+        "uniform sampler2D TextureStruct;\n"
         "in vec2 Frag_UV;\n"
         "in vec4 Frag_Color;\n"
         "layout (location = 0) out vec4 Out_Color;\n"
         "void main()\n"
         "{\n"
-        "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+        "    Out_Color = Frag_Color * texture(TextureStruct, Frag_UV.st);\n"
         "}\n";
 
     const GLchar* fragment_shader_glsl_410_core =
         "in vec2 Frag_UV;\n"
         "in vec4 Frag_Color;\n"
-        "uniform sampler2D Texture;\n"
+        "uniform sampler2D TextureStruct;\n"
         "layout (location = 0) out vec4 Out_Color;\n"
         "void main()\n"
         "{\n"
-        "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+        "    Out_Color = Frag_Color * texture(TextureStruct, Frag_UV.st);\n"
         "}\n";
 
     // Select shaders matching our GLSL versions
@@ -775,7 +775,7 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
     glDeleteShader(vert_handle);
     glDeleteShader(frag_handle);
 
-    bd->AttribLocationTex = glGetUniformLocation(bd->ShaderHandle, "Texture");
+    bd->AttribLocationTex = glGetUniformLocation(bd->ShaderHandle, "TextureStruct");
     bd->AttribLocationProjMtx = glGetUniformLocation(bd->ShaderHandle, "ProjMtx");
     bd->AttribLocationVtxPos = (GLuint)glGetAttribLocation(bd->ShaderHandle, "Position");
     bd->AttribLocationVtxUV = (GLuint)glGetAttribLocation(bd->ShaderHandle, "UV");
