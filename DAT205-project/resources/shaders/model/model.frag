@@ -1,5 +1,10 @@
 #version 410 core
-out vec4 FragColor;
+//out vec4 FragColor;
+
+// write to FrameBuffer targets
+layout (location = 0) out vec3 gPosition;
+layout (location = 1) out vec3 gNormal;
+layout (location = 2) out vec4 gAlbedoSpec;
 
 in vec3 FragPos;
 in vec3 Normal;
@@ -8,7 +13,12 @@ in vec2 TexCoords;
 uniform sampler2D texture_diffuse1;
 
 void main(){
+    gPosition = FragPos; // frag position in world coords
+    gNormal = normalize(Normal);
+    gAlbedoSpec.rgb = texture(texture_diffuse1, TexCoords).rgb;
+    gAlbedoSpec.a = 0.1; // = texture(texture_specular1, TexCoords).r; // TODO
 
+    /*
     // ambient
     float ambient_strength = 0.2;
     float specular_strength = 0.7;
@@ -30,4 +40,5 @@ void main(){
     //    FragColor = vec4((ambient+diffuse+specular)*objectColor, 1.0); // phong
     FragColor = vec4(ambient+diffuse, 1.0); // point light
     //    FragColor = texture(texture_diffuse1, TexCoords); // just texture
+    */
 }
