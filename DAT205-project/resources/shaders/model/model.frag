@@ -11,12 +11,14 @@ in vec3 Normal;
 in vec2 TexCoords;
 
 uniform sampler2D texture_diffuse1;
+uniform sampler2D texture_specular1;
+uniform sampler2D texture_normal1;
 
 void main(){
     gPosition = FragPos; // frag position in world coords
     gNormal = normalize(Normal);
     gAlbedoSpec.rgb = texture(texture_diffuse1, TexCoords).rgb;
-    gAlbedoSpec.a = 0.1; // = texture(texture_specular1, TexCoords).r; // TODO
+    gAlbedoSpec.a = texture(texture_specular1, TexCoords).r;
 
     /*
     // ambient

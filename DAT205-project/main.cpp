@@ -321,22 +321,42 @@ int main() {
 
         // --- Bind default FrameBuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT);
+        // glDisable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
         glBindVertexArray(quadVAO);
         quadDisplayShader.use();
+        quadDisplayShader.setInt("gPosition", 0);
+        quadDisplayShader.setInt("gNormal", 1);
+        quadDisplayShader.setInt("gAlbedoSpec", 2);
+        quadDisplayShader.setVec3("viewPos", camera.camPos);
+        quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 1.0f));
+        // any texture we previously attached to Geometry FrameBuffer
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_position); // any texture we previously attached to Geometry FrameBuffer
+        glBindTexture(GL_TEXTURE_2D, geometryFB_position);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindVertexArray(0);
 
-        // glEnable(GL_BLEND);
-        // mat4 MV = view*model;
-        // ps.draw(MV, projection);
-        // glDisable(GL_BLEND);
-        // glEnable(GL_DEPTH_TEST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        glBlitFramebuffer(
+                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        mat4 MV = view*model;
+        ps.draw(MV, projection);
+        glDisable(GL_BLEND);
+
+
 
         // --- IMGUI
         {
