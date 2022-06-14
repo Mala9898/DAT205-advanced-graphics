@@ -18,6 +18,7 @@
 #include "includes/utils/xyz_gizmo.h"
 #include "includes/systems/ParticleSystem.h"
 #include "includes/utils/Model.h"
+#include "utils/Plane.h"
 
 void mouse_callback(GLFWwindow* window, double x, double y);
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -35,7 +36,7 @@ bool show_demo_window = true;
 bool show_another_window = false;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 double startTime = 0;
-bool startCounting = false;
+bool enableSSAO = true;
 
 GLFWwindow *window = nullptr;
 
@@ -271,7 +272,9 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, geometryFB_Albedo_and_Spec, 0);
 
-    // tell which attachments of Geometry Framebuffer will be used for rendering
+    // specify order of attachments of Geometry Framebuffer
+    // order will correspond to fragment shader output variables
+    //                             layout (location = 0) layout (location = 1) layout (location = 2)
     unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
     glDrawBuffers(3, attachments);
 
@@ -281,11 +284,77 @@ int main() {
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-    // finally check if framebuffer is complete
+
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "Framebuffer not complete!" << std::endl;
+        std::cout << "ERROR: deferred FrameBuffer incomplete" << std::endl;
+
+    // --- SSAO FrameBuffer
+    unsigned int ssaoFrameBuffer;
+    glGenFramebuffers(1, &ssaoFrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoFrameBuffer);
+
+    unsigned int ssaoColorBuffer;
+    // SSAO color buffer
+    glGenTextures(1, &ssaoColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: ssao FrameBuffer incomplete" << std::endl;
+
+    // bind default FrameBuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+
+    // ----- <sampling kernel> ------
+    // --- points that will test if they're occluded or not
+    int kernelSize = 64;
+    // usage: unifDist(randomDevice)
+    std::random_device randomDevice;
+    std::mt19937 generator;
+    std::uniform_real_distribution<float> unifDist;
+    generator.seed(randomDevice());
+    unifDist = std::uniform_real_distribution<float>(-1.0f, 1.0f);
+    vector<vec3> kernel;
+    for (auto i = 0; i < kernelSize; i++) {
+        // shift distribution towards the center
+        float scale = glm::mix(0.1f, 1.0f, ((float)i*i)/(float(kernelSize*kernelSize)));
+        vec3 sample (unifDist(randomDevice), unifDist(randomDevice), abs(unifDist(randomDevice)));
+        sample = sample*scale;
+
+        kernel.emplace_back(sample);
+    }
+    // ----- </sampling kernel> ------
+    // ----- <random noise> -------
+    vector<vec3> rotationVecs;
+    int noiseSize = 4;
+    for(auto i = 0; i < noiseSize*noiseSize; i++) {
+        float x =  unifDist(randomDevice)*2.0f -1.0f;
+        float y =  unifDist(randomDevice)*2.0f -1.0f;
+        rotationVecs.emplace_back(vec3(x,y,0.0f));
+    }
+    unsigned int rotationVecTexture;
+    glGenTextures(1, &rotationVecTexture);
+    glBindTexture(GL_TEXTURE_2D, rotationVecTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, noiseSize, noiseSize, 0, GL_RGB, GL_FLOAT, &rotationVecs[0]);
+    // enable tiling
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // ----- </random noise> ------
+
+    Shader ssaoShader ("shaders/deferred/quad_display.vert","shaders/ssao/ssao.frag");
+    ssaoShader.use();
+    ssaoShader.setMat4("projection", &projection);
+    ssaoShader.setInt("kernelSize", kernelSize);
+    for (auto i = 0; i < kernelSize; i++)
+        ssaoShader.setVec3("samples[" + std::to_string(i) + "]", kernel[i]);
+
+    Shader planeShader("shaders/primitive/plane.vert","shaders/primitive/plane.frag");
+    Plane plane1(planeShader, projection);
 
     while(!glfwWindowShouldClose(window)){
         // --- process inputs
@@ -297,10 +366,13 @@ int main() {
         camera.handleMouse(xPos, yPos);
         camera.handleKeyboard();
 
-        // --- Setup Geometry Buffer
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+        // [~[~[~[~[~[~[~[~ Setup Geometry Buffer [~[~[~[~[~[~[~[~
         glBindFramebuffer(GL_FRAMEBUFFER, geometryFrameBuffer);
         glEnable(GL_DEPTH_TEST);
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f); // todo set all to 0?
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // ------------------ <scene> ------------------
@@ -316,22 +388,58 @@ int main() {
         modelShader.setMat4("projection", &projection);
         backpack.Draw(modelShader);
 
+        plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,0.0f)));
+
         glBindVertexArray(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // ------------------ </scene> ------------------
 
-        // --- Bind default FrameBuffer
+        // // [~[~[~[~[~[~[~[~ SSAO FrameBuffer [~[~[~[~[~[~[~[~
+        glBindFramebuffer(GL_FRAMEBUFFER, ssaoFrameBuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindVertexArray(quadVAO);
+        ssaoShader.use();
+        ssaoShader.setInt("gPosition", 0);
+        ssaoShader.setInt("gNormal", 1);
+        ssaoShader.setInt("noise", 2);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_position);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, rotationVecTexture);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        glBindVertexArray(0);
+
+        // // [~[~[~[~[~[~[~[~ display SSAO only FrameBuffer [~[~[~[~[~[~[~[~
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // // glDisable(GL_DEPTH_TEST);
+        // glClear(GL_COLOR_BUFFER_BIT);
+        // glBindVertexArray(quadVAO);
+        // quadDisplayShader.use();
+        // quadDisplayShader.setInt("gPosition", 0);
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        // glBindVertexArray(0);
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // // [~[~[~[~[~[~[~[~ Bind default FrameBuffer [~[~[~[~[~[~[~[~
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+        glClear(GL_COLOR_BUFFER_BIT);
         // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
         glBindVertexArray(quadVAO);
         quadDisplayShader.use();
         quadDisplayShader.setInt("gPosition", 0);
         quadDisplayShader.setInt("gNormal", 1);
         quadDisplayShader.setInt("gAlbedoSpec", 2);
+        // quadDisplayShader.setInt("gAO", 3);
         quadDisplayShader.setVec3("viewPos", camera.camPos);
         quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 1.0f));
+
         // any texture we previously attached to Geometry FrameBuffer
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, geometryFB_position);
@@ -339,23 +447,26 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
+        // glActiveTexture(GL_TEXTURE3);
+        // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindVertexArray(0);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-        glBlitFramebuffer(
-                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-        );
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        mat4 MV = view*model;
-        ps.draw(MV, projection);
-        glDisable(GL_BLEND);
-
+        // // --- copy depth buffer from Geometry Framebuffer into default FrameBuffer
+        // glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
+        // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        // glBlitFramebuffer(
+        //         0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        // );
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //
+        // // --- render particle system
+        // glEnable(GL_DEPTH_TEST);
+        // glEnable(GL_BLEND);
+        // mat4 MV = view*model;
+        // ps.draw(MV, projection);
+        // glDisable(GL_BLEND);
 
 
         // --- IMGUI
@@ -374,6 +485,8 @@ int main() {
                 toggle_mouse();
             if (ImGui::Button("Wireframe"))
                 toggle_wireframe();
+            if (ImGui::Button("Toggle SSAO"))
+                enableSSAO = !enableSSAO;
             ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();

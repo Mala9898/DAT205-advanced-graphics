@@ -17,6 +17,7 @@ uniform sampler2D texture_normal1;
 void main(){
     gPosition = FragPos; // frag position in world coords
     gNormal = normalize(Normal);
+//    gAlbedoSpec.rgb = vec3(0.2, 0.2,0.2);//texture(texture_diffuse1, TexCoords).rgb;
     gAlbedoSpec.rgb = texture(texture_diffuse1, TexCoords).rgb;
     gAlbedoSpec.a = texture(texture_specular1, TexCoords).r;
 

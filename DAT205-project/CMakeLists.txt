@@ -40,7 +40,7 @@ add_executable(project main.cpp
         includes/utils/shader.h
         includes/systems/ParticleSystem.h
         includes/utils/Model.h
-        )
+        includes/utils/Plane.h)
 
 target_link_libraries(project glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})
 include_directories(${PROJECT_SOURCE_DIR}/includes) # add /includes as search path for #include "whatever.h"
