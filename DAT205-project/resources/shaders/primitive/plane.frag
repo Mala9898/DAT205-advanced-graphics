@@ -1,9 +1,16 @@
 #version 410 core
-
 in vec2 TexCoords;
-out vec4 FragColor;
+// write to FrameBuffer targets
+layout (location = 0) out vec3 gPosition;
+layout (location = 1) out vec3 gNormal;
+layout (location = 2) out vec4 gAlbedoSpec;
 uniform sampler2D myTexture;
 
+in vec3 FragPos;
+
 void main() {
-    FragColor = vec4(1);
+    gPosition = FragPos; // frag position in world coords
+    gNormal = vec3(0,0,1);
+    gAlbedoSpec = vec4(1,0,0,1);
+
 }

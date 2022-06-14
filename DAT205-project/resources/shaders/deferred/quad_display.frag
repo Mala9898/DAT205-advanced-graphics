@@ -7,6 +7,7 @@ uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
 uniform sampler2D gAO;
+uniform bool enableSSAO;
 
 uniform vec3 viewPos;
 uniform vec3 lightPos;
@@ -34,10 +35,10 @@ void main () {
     vec3 specular = vec3(0);//vec3(Specular * spec);
 //    FragColor = vec4(Albedo, 1.0);
     FragColor = vec4(ambient+diffuse + specular, 1.0);
-//    if (enableSSAO)
-//        FragColor = vec4((ambient+diffuse)*ssao + specular, 1.0);
-//    else
-//        FragColor = vec4(ambient+diffuse + specular, 1.0);
+    if (enableSSAO)
+        FragColor = vec4((ambient+diffuse)*ssao + specular, 1.0);
+    else
+        FragColor = vec4(ambient+diffuse + specular, 1.0);
 
 
 }
