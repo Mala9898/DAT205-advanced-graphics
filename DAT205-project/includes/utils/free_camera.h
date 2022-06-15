@@ -15,8 +15,10 @@ public:
     float yaw = -90.0f;
     float pitch = 0.0f;
     bool first = true;
+    glm::vec3 camYflippped = glm::vec3(0.0f,1.0f,0.0f);
     glm::vec3 camY = glm::vec3(0.0f,1.0f,0.0f);
     glm::vec3 camFront = glm::vec3(0.0f,0.0f,-1.0f);
+    glm::vec3 camFrontFlipped = glm::vec3(0.0f,0.0f,-1.0f);
     glm::vec3 camPos = glm::vec3(0.0f,2.0f,3.0f);
     float sens = 0.1f;
     float speed = 0.05f;
@@ -57,6 +59,15 @@ public:
                             sin(glm::radians(pitch)),
                             sin(glm::radians(yaw)) * cos(glm::radians(pitch)));
         camFront = glm::normalize(dir);
+
+        float flippedPitch = -pitch;
+        float flippedYaw = yaw;
+        glm::vec3 flippedDir(cos(glm::radians(flippedYaw)) * cos(glm::radians(flippedPitch)),
+                             sin(glm::radians(flippedPitch)),
+                             sin(glm::radians(flippedYaw)) * cos(glm::radians(flippedPitch)));
+        camFrontFlipped = normalize(flippedDir);
+        glm::vec3 right = glm::normalize(glm::cross(camFrontFlipped, camY));
+        camYflippped = glm::normalize(glm::cross(right, camFrontFlipped));
     }
     void handleKeyboard() {
         float s = speed;

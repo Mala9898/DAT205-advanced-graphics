@@ -84,6 +84,6 @@ public:
 
         // --- cleanup
         glBindVertexArray(0); // unbind VAO
-        glActiveTexture(0);
+        // glActiveTexture(0);
     }
 };

@@ -13,13 +13,15 @@ out vec3 fragPos;
 out vec3 fragNormal;
 out vec3 fragLightDir;
 out vec2 TexCoords;
+out vec4 glp;
 void main() {
     // convert to view space
     fragPos = vec3(view*model*vec4(aPos, 1.0));
     fragNormal =normalize(transpose(inverse(mat3(view * model))) * aNormal);
     fragLightDir = lightPos - fragPos;
 
-    gl_Position = projection*view*model*vec4(aPos, 1.0);
+    glp = projection*view*model*vec4(aPos, 1.0);
+    gl_Position = glp;
 
     TexCoords = aTexCoords;
 }

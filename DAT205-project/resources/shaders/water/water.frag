@@ -4,11 +4,16 @@ in vec3 fragPos;
 in vec3 fragNormal;
 in vec3 fragLightDir;
 in vec2 TexCoords;
+in vec4 glp;
+
+uniform sampler2D textureReflect;
+uniform sampler2D textureRefract;
 
 out vec4 FragColor;
 
 
 void main () {
+    // --- lighting
     vec3 albedo = vec3(0,0,0.5); //todo
     vec3 fragLight = normalize(fragLightDir);
     vec3 fragNormal = normalize(fragNormal);
@@ -21,7 +26,22 @@ void main () {
     float spec = pow(c2, 32);
     vec3 specular = vec3(spec,spec,spec) * 0.7;
 
-    FragColor = vec4(ambient+diffuse+specular, 0.8);
+    // reflection + refraction
+    vec4 mixColor, reflectColor, refractColor, blueColor;
+    refractColor = texture(textureRefract, (vec2(glp.x,glp.y))/(2.0*glp.w)+0.5);
+    reflectColor = texture(textureReflect, (vec2(glp.x,-glp.y))/(2.0*glp.w)+0.5);
+//    reflectColor = texture(textureReflect, (vec2(glp.x,glp.y))/(2.0*glp.w)+0.5); // modified
+    mixColor = (0.2 * refractColor) + (1.0 * reflectColor);
+
+//    FragColor = vec4((ambient+diffuse)*mixColor.xyz +specular, 1);
+//    FragColor = vec4(ambient+diffuse+specular, 0.8);
+
+//    FragColor = texture(textureReflect, vec2(TexCoords.x, 1-TexCoords.y));
+//    FragColor = texture(textureRefract, TexCoords);
+//    FragColor = mix(refractColor, reflectColor, 0.5);
+//    FragColor = vec4((mixColor.xyz * (ambient + diffuse) + 0.2*specular), 1.0);
+    FragColor = vec4((mixColor.xyz + diffuse ), 1.0);
+//    FragColor = vec4(0,0,1,1);
 
 //    // ambient
 //    float ambient_strength = 0.2;

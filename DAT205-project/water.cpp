@@ -25,6 +25,7 @@ void mouse_callback(GLFWwindow* window, double x, double y);
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void toggle_mouse ();
 void toggle_wireframe();
+void createFBOs();
 
 using std::vector, std::string;
 using glm::vec3,glm::vec4, glm::mat4, glm::scale, glm::translate;
@@ -43,58 +44,13 @@ GLFWwindow *window = nullptr;
 
 float surfacePlaneHeight = 1.0f;
 float floorPlaneHeight = 0.0f;
-unsigned int refractFrameBuffer, reflectFrameBuffer;
+unsigned int refractFBO, refLECT_FBO;
 unsigned int refractTextureId, reflectTextureID; // ATTACHMENTS
 GLuint renderingProgramSURFACE, renderingProgramFLOOR, renderingProgramCubeMap;
 Shader waterFloorShader;
 Shader waterShader;
 
-void createReflectRefractBuffers() { // called once from init()
-    GLuint bufferId[1];
-    glGenBuffers(1, bufferId);
-    glfwGetFramebufferSize(window, &screenWidth, &screenHeight);
-    // initialize refraction framebuffer
-    glGenFramebuffers(1, bufferId);
-    refractFrameBuffer = bufferId[0];
-    glBindFramebuffer(GL_FRAMEBUFFER, refractFrameBuffer);
-        glGenTextures(1, bufferId);
-        refractTextureId = bufferId[0];
-        glBindTexture(GL_TEXTURE_2D, refractTextureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, refractTextureId, 0);
-
-        glDrawBuffer(GL_COLOR_ATTACHMENT0);
-        glGenTextures(1, bufferId);
-        glBindTexture(GL_TEXTURE_2D, bufferId[0]);
-        glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bufferId[0], 0);
-
-    // initialize reflection framebuffer
-    glGenFramebuffers(1, bufferId);
-    reflectFrameBuffer = bufferId[0];
-    glBindFramebuffer(GL_FRAMEBUFFER, reflectFrameBuffer);
-        glGenTextures(1, bufferId);
-        reflectTextureID = bufferId[0];
-        glBindTexture(GL_TEXTURE_2D, reflectTextureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflectTextureID, 0);
-
-        glDrawBuffer(GL_COLOR_ATTACHMENT0);
-        glGenTextures(1, bufferId);
-        glBindTexture(GL_TEXTURE_2D, bufferId[0]);
-        glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bufferId[0], 0);
-}
 
 int main() {
 
@@ -112,6 +68,7 @@ int main() {
 
     waterFloorShader = Shader("shaders/water/water.vert", "shaders/water/waterFloor.frag");
     waterShader = Shader("shaders/water/water.vert", "shaders/water/water.frag");
+    // waterShader = Shader("shaders/tests/display.vert", "shaders/tests/display.frag");
     Plane waterFloor (waterFloorShader, projection);
     Plane water (waterShader, projection);
 
@@ -121,12 +78,14 @@ int main() {
     cubeShader.setMat4("projection", &projection);
     MyCube cube ("textures/wood.jpg");
 
-    createReflectRefractBuffers();
+    createFBOs();
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     vec3 lightPos (0.0f, 3.0f,0.0f);
+
+
 
     while(!glfwWindowShouldClose(window)){
         // --- process inputs
@@ -138,45 +97,74 @@ int main() {
         camera.handleMouse(xPos, yPos);
         camera.handleKeyboard();
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        /* --- part 2: reflect --- */
-        // mat4 vMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -(surfacePlaneHeight - camera.camPos.y), 0.0f))
-        //         * glm::rotate(glm::mat4(1.0f), glm::radians(-camera.pitch), glm::vec3(1.0f, 0.0f, 0.0f));
-        // glBindBuffer(GL_FRAMEBUFFER, reflectFrameBuffer);
-        // glClear(GL_DEPTH_BUFFER_BIT);
-        // glClear(GL_COLOR_BUFFER_BIT);
-        // // prepForSkyBoxRender();
-        // glEnable(GL_CULL_FACE);
-        // glFrontFace(GL_CCW);
-        // glDisable(GL_DEPTH_TEST);
-        // glDrawArrays(GL_TRIANGLES, 0, 36);
-        // glEnable(GL_DEPTH_TEST);
         // ------------------ <scene> ------------------
         mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
+        mat4 viewNEW = glm::lookAt(camera.camPos+vec3(0.0f,0.0f,2.0f+glfwGetTime()-startTime), camera.camPos+vec3(0.0f,0.0f,2.0f) + camera.camFront, camera.camY);
         mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
         mat4 MVP = projection*view*model;
 
-        gizmo.draw(MVP);
+        /* --- refraction --- */
+        glBindFramebuffer(GL_FRAMEBUFFER, refractFBO);
+            // glDisable(GL_DEPTH_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        waterFloorShader.use();
-        mat4 floorModelMatrix = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f));
-        float floorScaleFactor = 5.0f;
-        floorModelMatrix = scale(floorModelMatrix, vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
-        waterFloor.draw(view, floorModelMatrix);
+            waterFloorShader.use();
+            waterFloorShader.setMat4("view", &MVP);
+            mat4 floorModelMatrix = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f));
+            float floorScaleFactor = 5.0f;
+            floorModelMatrix = scale(floorModelMatrix, vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
+            waterFloor.draw(view, floorModelMatrix);
 
-        waterShader.use();
-        waterShader.setVec3("lightPos", lightPos);
-        floorModelMatrix = translate(floorModelMatrix, vec3(0.0f, 0.0f, -0.2f));
-        water.draw(view, floorModelMatrix);
+            gizmo.draw(MVP);
 
-        cubeShader.use();
-        cubeShader.setMat4("view", &view);
-        mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 3.0f,0.0f));
-        cubeShader.setMat4("model",&cubeModelM);
-        cube.Draw(cubeShader);
+        /* --- 🪞 reflect --- */
+        glBindFramebuffer(GL_FRAMEBUFFER, refLECT_FBO);
+            // glDisable(GL_DEPTH_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            vec3 flip(camera.camPos.x, 1-camera.camPos.y, camera.camPos.z);
+            mat4 vMat = glm::lookAt(flip, flip+camera.camFrontFlipped, camera.camYflippped);
+            // -- render "reflected" scene
+
+            gizmo.draw(projection*vMat);
+            cubeShader.use();
+            cubeShader.setMat4("view", &vMat);
+            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 1.0f,0.0f));
+            cubeShader.setMat4("model",&cubeModelM);
+            cube.Draw(cubeShader);
+
+        /* --- default framebuffer --- */
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+            // glEnable(GL_DEPTH_TEST);
+
+            glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the color above
+
+            cubeShader.use();
+            cubeShader.setMat4("view", &view);
+            cubeShader.setMat4("view", &view);
+            // mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 3.0f,0.0f));
+            cubeShader.setMat4("model",&cubeModelM);
+            cube.Draw(cubeShader);
+            //
+            // // 1. render water
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, reflectTextureID);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, refractTextureId);
+
+            waterShader.use();
+            waterShader.setInt("textureReflect", 0);
+            waterShader.setInt("textureRefract", 1);
+            // // waterShader.setInt("textureRefract", 1);
+            // waterShader.setVec3("lightPos", lightPos);
+            // floorModelMatrix = translate(floorModelMatrix, vec3(0.0f, 0.0f, -0.2f));
+            water.draw(view, floorModelMatrix);
+
+            gizmo.draw(MVP);
+
 
         // ------------------ </scene> ------------------
 
@@ -235,4 +223,51 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         toggle_mouse();
     }
+}
+void createFBOs() { // called once from init()
+    GLuint bufferId[1];
+
+    glGenFramebuffers(1, &refractFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, refractFBO);
+    // create a color attachment texture
+    // unsigned int textureColorbuffer;
+    glGenTextures(1, &refractTextureId);
+    glBindTexture(GL_TEXTURE_2D, refractTextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, refractTextureId, 0);
+
+    // create & attach depth buffer
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: refract FrameBuffer incomplete" << std::endl;
+
+    // initialize reflection framebuffer
+    glGenFramebuffers(1, &refLECT_FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, refLECT_FBO);
+    glGenTextures(1, &reflectTextureID);
+    glBindTexture(GL_TEXTURE_2D, reflectTextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflectTextureID, 0);
+
+    glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+    // create & attach depth buffer
+    unsigned int rboDepth2;
+    glGenRenderbuffers(1, &rboDepth2);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth2);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth2);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: reflect FrameBuffer incomplete" << std::endl;
 }

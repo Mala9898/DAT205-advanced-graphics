@@ -177,19 +177,19 @@ public:
         shader.setMat4("model", &model);
         shader.setMat4("view", &view);
         glBindVertexArray(VAO);
-        glActiveTexture(GL_TEXTURE0);
-        glUniform1i(glGetUniformLocation(shader.ID, uniformVar.c_str()), 0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        if (using_normal) {
-            shader.use();
-            shader.setInt("usingNormal", 1);
-            shader.setInt("normalTexture", 1);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, normalTexture);
-        } else {
-            shader.use();
-            shader.setInt("usingNormal", 0);
-        }
+        // glActiveTexture(GL_TEXTURE6);
+        // glUniform1i(glGetUniformLocation(shader.ID, uniformVar.c_str()), 6);
+        // glBindTexture(GL_TEXTURE_2D, texture);
+        // if (using_normal) {
+        //     shader.use();
+        //     shader.setInt("usingNormal", 1);
+        //     shader.setInt("normalTexture", 1);
+        //     glActiveTexture(GL_TEXTURE1);
+        //     glBindTexture(GL_TEXTURE_2D, normalTexture);
+        // } else {
+        //     shader.use();
+        //     shader.setInt("usingNormal", 0);
+        // }
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
     }

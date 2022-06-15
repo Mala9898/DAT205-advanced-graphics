@@ -401,20 +401,20 @@ int main() {
 
 
 
-        // // --- copy depth buffer from Geometry Framebuffer into default FrameBuffer
-        // glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
-        // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-        // glBlitFramebuffer(
-        //         0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-        // );
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        //
-        // // --- render particle system
-        // glEnable(GL_DEPTH_TEST);
-        // glEnable(GL_BLEND);
-        // mat4 MV = view*model;
-        // ps.draw(MV, projection);
-        // glDisable(GL_BLEND);
+        // --- copy depth buffer from Geometry Framebuffer into default FrameBuffer
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        glBlitFramebuffer(
+                0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // --- render particle system
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        mat4 MV = view*model;
+        ps.draw(MV, projection);
+        glDisable(GL_BLEND);
 
 
         // --- IMGUI
