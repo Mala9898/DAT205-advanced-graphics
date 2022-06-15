@@ -38,117 +38,12 @@ ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 double startTime = 0;
 bool enableSSAO = true;
 
-GLFWwindow *window = nullptr;
-
-float lerp(float a, float b, float f)
-{
-    return a + f * (b - a);
-}
-// renderQuad() renders a 1x1 XY quad in NDC
-// -----------------------------------------
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
-void renderQuad()
-{
-    if (quadVAO == 0)
-    {
-        float quadVertices[] = {
-                // positions        // texture Coords
-                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        };
-        // setup plane VAO
-        glGenVertexArrays(1, &quadVAO);
-        glGenBuffers(1, &quadVBO);
-        glBindVertexArray(quadVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    }
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
-}
+void renderQuad();
 
-// renderCube() renders a 1x1 3D cube in NDC.
-// -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube()
-{
-    // initialize (if necessary)
-    if (cubeVAO == 0)
-    {
-        float vertices[] = {
-                // back face
-                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-                // front face
-                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-                1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-                // left face
-                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-                // right face
-                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-                1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-                // bottom face
-                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-                // top face
-                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-                1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
-                1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
-        };
-        glGenVertexArrays(1, &cubeVAO);
-        glGenBuffers(1, &cubeVBO);
-        // fill buffer
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        // link vertex attributes
-        glBindVertexArray(cubeVAO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    // render Cube
-    glBindVertexArray(cubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
-}
+GLFWwindow *window = nullptr;
+
 
 int main() {
 
@@ -292,7 +187,6 @@ int main() {
     unsigned int ssaoFrameBuffer;
     glGenFramebuffers(1, &ssaoFrameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, ssaoFrameBuffer);
-
     unsigned int ssaoColorBuffer;
     // SSAO color buffer
     glGenTextures(1, &ssaoColorBuffer);
@@ -303,6 +197,21 @@ int main() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR: ssao FrameBuffer incomplete" << std::endl;
+
+    // -- SSAO blur FrameBuffer
+    unsigned int ssaoBlurFrameBuffer;
+    glGenFramebuffers(1, &ssaoBlurFrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFrameBuffer);
+    unsigned int ssaoBlurBuffer;
+    glGenTextures(1, &ssaoBlurBuffer);
+    glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoBlurBuffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: ssao blur FrameBuffer incomplete" << std::endl;
 
     // bind default FrameBuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -353,6 +262,9 @@ int main() {
     for (auto i = 0; i < kernelSize; i++)
         ssaoShader.setVec3("samples[" + std::to_string(i) + "]", kernel[i]);
 
+    Shader ssaoBlurShader ("shaders/deferred/quad_display.vert","shaders/ssao/blur.frag");
+
+
     Shader planeShader("shaders/primitive/plane.vert","shaders/primitive/plane.frag");
     Plane plane1(planeShader, projection);
 
@@ -389,6 +301,7 @@ int main() {
         backpack.Draw(modelShader);
 
         plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));
+        plane1.draw(view, translate(mat4(1), vec3(2.0f,2.0f,-0.2f)));
 
         glBindVertexArray(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -413,46 +326,61 @@ int main() {
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindVertexArray(0);
 
-        // // [~[~[~[~[~[~[~[~ display SSAO only FrameBuffer [~[~[~[~[~[~[~[~
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glDisable(GL_DEPTH_TEST);
+        // ---- BLUR BUFFER
+        glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(quadVAO);
-        quadDisplayShader.use();
-        quadDisplayShader.setInt("gPosition", 0);
+        ssaoBlurShader.use();
+        ssaoBlurShader.setInt("ssao", 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindVertexArray(0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // // [~[~[~[~[~[~[~[~ Bind default FrameBuffer [~[~[~[~[~[~[~[~
+        // --- WARNING: ONLY FOR TESTING ---
         // glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // // glDisable(GL_DEPTH_TEST);
         // glClear(GL_COLOR_BUFFER_BIT);
-        // // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
         // glBindVertexArray(quadVAO);
         // quadDisplayShader.use();
-        // quadDisplayShader.setBool("enableSSAO", enableSSAO);
         // quadDisplayShader.setInt("gPosition", 0);
-        // quadDisplayShader.setInt("gNormal", 1);
-        // quadDisplayShader.setInt("gAlbedoSpec", 2);
-        // quadDisplayShader.setInt("gAO", 3);
-        // quadDisplayShader.setVec3("viewPos", camera.camPos);
-        // quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 1.0f));
-        //
-        // // any texture we previously attached to Geometry FrameBuffer
         // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_2D, geometryFB_position);
-        // glActiveTexture(GL_TEXTURE1);
-        // glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
-        // glActiveTexture(GL_TEXTURE2);
-        // glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
-        // glActiveTexture(GL_TEXTURE3);
-        // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-        //
+        // // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+        // glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
         // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         // glBindVertexArray(0);
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // [~[~[~[~[~[~[~[~ Bind default FrameBuffer [~[~[~[~[~[~[~[~
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glDisable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT);
+        // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
+        glBindVertexArray(quadVAO);
+        quadDisplayShader.use();
+        quadDisplayShader.setBool("enableSSAO", enableSSAO);
+        quadDisplayShader.setInt("gPosition", 0);
+        quadDisplayShader.setInt("gNormal", 1);
+        quadDisplayShader.setInt("gAlbedoSpec", 2);
+        quadDisplayShader.setInt("gAO", 3);
+        quadDisplayShader.setVec3("viewPos", camera.camPos);
+        quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 2.0f));
+
+        // any texture we previously attached to Geometry FrameBuffer
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_position);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        glBindVertexArray(0);
+
+
 
         // // --- copy depth buffer from Geometry Framebuffer into default FrameBuffer
         // glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
@@ -525,4 +453,29 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         toggle_mouse();
     }
+}
+
+void renderQuad(){
+    if (quadVAO == 0){
+        float quadVertices[] = {
+                // positions        // texture Coords
+                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }
