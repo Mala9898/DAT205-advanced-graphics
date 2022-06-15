@@ -42,7 +42,23 @@ add_executable(project main.cpp
         includes/utils/Model.h
         includes/utils/Plane.h)
 
+add_executable(water water.cpp
+        includes/utils/my_gl_init.cpp includes/utils/my_gl_init.h
+        includes/utils/misc.cpp includes/utils/misc.h
+
+        includes/external/imgui/imgui.cpp includes/external/imgui/imgui_demo.cpp includes/external/imgui/imgui_draw.cpp
+        includes/external/imgui/imgui_tables.cpp includes/external/imgui/imgui_widgets.cpp
+        includes/external/imgui/imgui_impl_glfw.cpp includes/external/imgui/imgui_impl_opengl3.cpp
+
+        includes/utils/free_camera.h
+        includes/utils/xyz_gizmo.h
+        includes/utils/shader.h
+        includes/systems/ParticleSystem.h
+        includes/utils/Model.h
+        includes/utils/Plane.h)
+
 target_link_libraries(project glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})
+target_link_libraries(water glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})
 include_directories(${PROJECT_SOURCE_DIR}/includes) # add /includes as search path for #include "whatever.h"
 
 # ------------------------------------------------------------------------
@@ -51,3 +67,7 @@ include_directories(${PROJECT_SOURCE_DIR}/includes) # add /includes as search pa
 add_custom_command(TARGET project PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/ $<TARGET_FILE_DIR:project>)
+
+add_custom_command(TARGET water PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/ $<TARGET_FILE_DIR:water>)

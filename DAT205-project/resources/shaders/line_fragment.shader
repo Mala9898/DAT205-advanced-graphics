@@ -1,4 +1,4 @@
-#version 330 core
+#version 410 core
 
 layout (location = 2) out vec4 FragColor;
 layout (location = 1) out vec4 gNormal;

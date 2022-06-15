@@ -28,7 +28,7 @@ private:
 
 public:
     Gizmo() {
-        Shader gizShader = Shader("shaders/line_vertex.shader", "shaders/line_fragment.shader");
+        Shader gizShader = Shader("shaders/line_vertex.shader", "shaders/forward/gizmo.frag");
         shaderID=gizShader.ID;
 
         glUseProgram(shaderID);

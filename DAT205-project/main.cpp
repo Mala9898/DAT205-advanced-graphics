@@ -28,6 +28,9 @@ void toggle_wireframe();
 using std::vector, std::string;
 using glm::vec3,glm::vec4, glm::mat4, glm::scale, glm::translate;
 
+int screenWidth = 800;
+int screenHeight = 600;
+
 FreeCamera camera = nullptr;
 bool hideMouse = false;
 bool wireframe = false;
@@ -40,10 +43,29 @@ bool enableSSAO = true;
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
+float plane_data[] = {
+        1.0f,  1.0f, 0.0f,  // top right
+        1.0f, -1.0f, 0.0f,  // bottom right
+        -1.0f, -1.0f, 0.0f,  // bottom left
+        -1.0f,  1.0f, 0.0f   // top left
+};
+vector<float> tex_data = {
+        1.0f,  1.0f,  // top right
+        1.0f, 0.0f,  // bottom right
+        0.0f, 0.0f,  // bottom left
+        0.0f,  1.0f   // top left
+};
+unsigned int quad_buffer_indices[] = {
+        0,2,1,
+        2,0,3
+};
+unsigned int EBO, textureBO;
 void renderQuad();
 
 GLFWwindow *window = nullptr;
 
+unsigned int geometryFrameBuffer;
+unsigned int geometryFB_position, geometryFB_normal, geometryFB_Albedo_and_Spec;
 
 int main() {
 
@@ -77,26 +99,8 @@ int main() {
     }
 
     // ------------------ <Screen Quad> ------------------
-    float plane_data[] = {
-            1.0f,  1.0f, 0.0f,  // top right
-            1.0f, -1.0f, 0.0f,  // bottom right
-            -1.0f, -1.0f, 0.0f,  // bottom left
-            -1.0f,  1.0f, 0.0f   // top left
-    };
-    vector<float> tex_data = {
-            1.0f,  1.0f,  // top right
-            1.0f, 0.0f,  // bottom right
-            0.0f, 0.0f,  // bottom left
-            0.0f,  1.0f   // top left
 
-    };
-    unsigned int quad_buffer_indices[] = {
-            0,2,1,
-            2,0,3
-    };
-    unsigned int EBO, textureBO;
     // screen quad VAO
-    unsigned int quadVAO, quadVBO;
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);
     glBindVertexArray(quadVAO);
@@ -135,18 +139,13 @@ int main() {
     // 2. lighting pass
 
     // --- create FrameBuffer
-    unsigned int geometryFrameBuffer;
     glGenFramebuffers(1, &geometryFrameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, geometryFrameBuffer);
 
-    unsigned int geometryFB_position, geometryFB_normal, geometryFB_Albedo_and_Spec;
-
-    int SCR_WIDTH = 800;
-    int SCR_HEIGHT = 600;
     // - position (color buffer) vec4[x,y,z, null]
     glGenTextures(1, &geometryFB_position);
     glBindTexture(GL_TEXTURE_2D, geometryFB_position);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, geometryFB_position, 0);
@@ -154,7 +153,7 @@ int main() {
     // - normal (color buffer) vec4[x,y,z, null]
     glGenTextures(1, &geometryFB_normal);
     glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, geometryFB_normal, 0);
@@ -162,7 +161,7 @@ int main() {
     // - color + specular, combined (color buffer) vec4[r,g,b, specular]
     glGenTextures(1, &geometryFB_Albedo_and_Spec);
     glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, geometryFB_Albedo_and_Spec, 0);
@@ -177,7 +176,7 @@ int main() {
     unsigned int rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -191,7 +190,7 @@ int main() {
     // SSAO color buffer
     glGenTextures(1, &ssaoColorBuffer);
     glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, screenWidth, screenHeight, 0, GL_RED, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
@@ -206,7 +205,7 @@ int main() {
     unsigned int ssaoBlurBuffer;
     glGenTextures(1, &ssaoBlurBuffer);
     glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, screenWidth, screenHeight, 0, GL_RED, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoBlurBuffer, 0);
@@ -386,7 +385,7 @@ int main() {
         // glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
         // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // glBlitFramebuffer(
-        //         0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        //         0, 0, screenWidth, SCR_HEIGHT, 0, 0, screenWidth, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
         // );
         // glBindFramebuffer(GL_FRAMEBUFFER, 0);
         //
