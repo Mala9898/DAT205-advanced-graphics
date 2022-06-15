@@ -66,6 +66,11 @@ GLFWwindow *window = nullptr;
 
 unsigned int geometryFrameBuffer;
 unsigned int geometryFB_position, geometryFB_normal, geometryFB_Albedo_and_Spec;
+// TODO
+float lerp(float a, float b, float f)
+{
+    return a + f * (b - a);
+}
 
 int main() {
 
@@ -127,10 +132,13 @@ int main() {
     quadDisplayShader.setInt("myTexture", 0); // texture unit 0
     // ------------------ </Screen Quad> ------------------
 
-
-    Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
-    string modelName = "models/backpack.obj";
+    Shader modelShader ("shaders/model/model.vert","shaders/model/model_primitive.frag");
+    string modelName = "models/model_plane.obj";
     Model backpack(&modelName[0]);
+
+    // Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
+    // string modelName = "models/backpack.obj";
+    // Model backpack(&modelName[0]);
 
     // ---- deferred shading
     // 1. geometry pass
@@ -225,23 +233,46 @@ int main() {
     std::uniform_real_distribution<float> unifDist;
     generator.seed(randomDevice());
     unifDist = std::uniform_real_distribution<float>(-1.0f, 1.0f);
-    vector<vec3> kernel;
-    for (auto i = 0; i < kernelSize; i++) {
-        // shift distribution towards the center
-        float scale = glm::mix(0.1f, 1.0f, ((float)i*i)/(float(kernelSize*kernelSize)));
-        vec3 sample (unifDist(randomDevice), unifDist(randomDevice), abs(unifDist(randomDevice)));
-        sample = sample*scale;
+    // --- MINE
+    // vector<vec3> kernel;
+    // for (auto i = 0; i < kernelSize; i++) {
+    //     // shift distribution towards the center
+    //     float scale = glm::mix(0.1f, 1.0f, ((float)i*i)/(float(kernelSize*kernelSize)));
+    //     vec3 sample (unifDist(randomDevice), unifDist(randomDevice), abs(unifDist(randomDevice)));
+    //     sample = sample*scale;
+    //
+    //     kernel.emplace_back(sample);
+    // }
+    /* --- TODO <delete> --*/
+    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
+    std::default_random_engine gen;
+    std::vector<glm::vec3> kernel;
+    for (unsigned int i = 0; i < 64; ++i)
+    {
+        glm::vec3 sample(randomFloats(gen) * 2.0 - 1.0, randomFloats(gen) * 2.0 - 1.0, randomFloats(gen));
+        sample = glm::normalize(sample);
+        sample *= randomFloats(gen);
+        float scale = float(i) / 64.0f;
 
-        kernel.emplace_back(sample);
+        // scale samples s.t. they're more aligned to center of kernel
+        scale = lerp(0.1f, 1.0f, scale * scale);
+        sample *= scale;
+        kernel.push_back(sample);
     }
+    /* --- TODO </delete> --*/
     // ----- </sampling kernel> ------
     // ----- <random noise> -------
     vector<vec3> rotationVecs;
     int noiseSize = 4;
-    for(auto i = 0; i < noiseSize*noiseSize; i++) {
-        float x =  unifDist(randomDevice)*2.0f -1.0f;
-        float y =  unifDist(randomDevice)*2.0f -1.0f;
-        rotationVecs.emplace_back(vec3(x,y,0.0f));
+    // for(auto i = 0; i < noiseSize*noiseSize; i++) {
+    //     float x =  unifDist(randomDevice)*2.0f -1.0f;
+    //     float y =  unifDist(randomDevice)*2.0f -1.0f;
+    //     rotationVecs.emplace_back(vec3(x,y,0.0f));
+    // }
+    for (unsigned int i = 0; i < 16; i++){
+        glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+        rotationVecs.push_back(noise);
+        // rotationVecs.push_back(vec3(0.5f, 0.5f,0.0f));
     }
     unsigned int rotationVecTexture;
     glGenTextures(1, &rotationVecTexture);
@@ -297,6 +328,14 @@ int main() {
         modelShader.setMat4("model", &model);
         modelShader.setMat4("view", &view);
         modelShader.setMat4("projection", &projection);
+        backpack.Draw(modelShader);
+
+        glm::mat4 model2 = glm::rotate(mat4(1), 3.14f/2.0f, vec3(0.0f,1.0f,0.0f));
+        modelShader.setMat4("model", &model2);
+        backpack.Draw(modelShader);
+
+        glm::mat4 model3 = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f));
+        modelShader.setMat4("model", &model3);
         backpack.Draw(modelShader);
 
         plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));

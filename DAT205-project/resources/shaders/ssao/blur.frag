@@ -7,7 +7,6 @@ uniform sampler2D ssao;
 const float offset = 1.0 / 300.0;
 
 void main () {
-
     vec2 offsets[9] = vec2[](
         vec2(-offset,  offset), // top-left
         vec2( 0.0f,    offset), // top-center
