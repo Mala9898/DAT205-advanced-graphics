@@ -10,15 +10,14 @@ private:
     bool enabled = true;
 
     float prevX = 400, prevY = 300; // TODO
-    float yaw = -90.0f;
-    float pitch = 0.0f;
 
 public:
-
+    float yaw = -90.0f;
+    float pitch = 0.0f;
     bool first = true;
     glm::vec3 camY = glm::vec3(0.0f,1.0f,0.0f);
     glm::vec3 camFront = glm::vec3(0.0f,0.0f,-1.0f);
-    glm::vec3 camPos = glm::vec3(0.0f,0.0f,3.0f);
+    glm::vec3 camPos = glm::vec3(0.0f,2.0f,3.0f);
     float sens = 0.1f;
     float speed = 0.05f;
     float multiplier = 4.0f;

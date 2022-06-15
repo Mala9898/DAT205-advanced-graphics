@@ -55,7 +55,7 @@ add_executable(water water.cpp
         includes/utils/shader.h
         includes/systems/ParticleSystem.h
         includes/utils/Model.h
-        includes/utils/Plane.h)
+        includes/utils/Plane.h includes/utils/Cube.h includes/utils/cube_with_tex.h)
 
 target_link_libraries(project glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})
 target_link_libraries(water glfw ${OPENGL_gl_LIBRARY} ${GLEW_LIBRARIES} ${ASSIMP_LIBRARIES})

@@ -29,6 +29,12 @@ vector<float> tex_datax = {
         0.0f, 0.0f,  // bottom left
         0.0f,  1.0f   // top left
 };
+float plane_normalx[] = {
+        0.0f,  0.0f, 1.0f,  // top right
+        0.0f,  0.0f, 1.0f,  // bottom right
+        0.0f,  0.0f, 1.0f,  // bottom left
+        0.0f,  0.0f, 1.0f,   // top left
+};
 // float tex_data[] = {
 //         1.0f,  1.0f,  // top right
 //         1.0f, 0.0f,  // bottom right
@@ -47,7 +53,7 @@ unsigned int plane_indices[] = {
 };
 class Plane{
 private:
-    unsigned int VAO, VBO, EBO, texture, normalTexture, textureBO;
+    unsigned int VAO, VBO, EBO, texture, normalTexture, textureBO, normalVBO;
     bool using_texture = false;
 
     string uniformVar = "myTexture";
@@ -119,6 +125,13 @@ public:
         glBufferData(GL_ARRAY_BUFFER, tex_datax.size()*sizeof(float), &tex_datax[0], GL_STATIC_DRAW); // if using vector<>
         glVertexAttribPointer(1,2, GL_FLOAT, GL_FALSE, 2*sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
+
+        //normalVBO
+        glGenBuffers(1, &normalVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(plane_normalx), plane_normalx, GL_STATIC_DRAW);
+        glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);  // configure our position vertex attribute
+        glEnableVertexAttribArray(2);
 
         // --- texture
         if (texture_name != "") {
