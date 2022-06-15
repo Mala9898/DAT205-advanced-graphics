@@ -132,19 +132,22 @@ int main() {
     quadDisplayShader.setInt("myTexture", 0); // texture unit 0
     // ------------------ </Screen Quad> ------------------
 
-    Shader modelShader ("shaders/model/model.vert","shaders/model/model_primitive.frag");
-    string modelName = "models/model_plane.obj";
-    Model backpack(&modelName[0]);
-
-    // Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
-    // string modelName = "models/backpack.obj";
+    // ⚠️ shader BROKEN
+    // Shader modelShader ("shaders/model/model.vert","shaders/model/model_primitive.frag");
+    // string modelName = "models/model_plane.obj";
     // Model backpack(&modelName[0]);
 
-    // ---- deferred shading
+    Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
+    string modelName = "models/backpack.obj";
+    Model backpack(&modelName[0]);
+
+    // ---- Pipeline ----
     // 1. geometry pass
     //     - each fragment needs to store: (vector) 1. position, 2. normal, 3. color , (float) 4. specular
     //     - render each component to different render targets (textures/renderbuffer)
-    // 2. lighting pass
+    // 2. SSAO pass
+    // 3. SSAO blur pass
+    // 4. lighting pass
 
     // --- create FrameBuffer
     glGenFramebuffers(1, &geometryFrameBuffer);
@@ -234,46 +237,25 @@ int main() {
     generator.seed(randomDevice());
     unifDist = std::uniform_real_distribution<float>(-1.0f, 1.0f);
     // --- MINE
-    // vector<vec3> kernel;
-    // for (auto i = 0; i < kernelSize; i++) {
-    //     // shift distribution towards the center
-    //     float scale = glm::mix(0.1f, 1.0f, ((float)i*i)/(float(kernelSize*kernelSize)));
-    //     vec3 sample (unifDist(randomDevice), unifDist(randomDevice), abs(unifDist(randomDevice)));
-    //     sample = sample*scale;
-    //
-    //     kernel.emplace_back(sample);
-    // }
-    /* --- TODO <delete> --*/
-    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
-    std::default_random_engine gen;
-    std::vector<glm::vec3> kernel;
-    for (unsigned int i = 0; i < 64; ++i)
-    {
-        glm::vec3 sample(randomFloats(gen) * 2.0 - 1.0, randomFloats(gen) * 2.0 - 1.0, randomFloats(gen));
-        sample = glm::normalize(sample);
-        sample *= randomFloats(gen);
-        float scale = float(i) / 64.0f;
+    vector<vec3> kernel;
+    for (auto i = 0; i < kernelSize; i++) {
+        // shift distribution towards the center
+        float scale = glm::mix(0.1f, 1.0f, ((float)i*i)/(float(kernelSize*kernelSize)));
+        vec3 sample (unifDist(randomDevice), unifDist(randomDevice), abs(unifDist(randomDevice)));
+        sample = sample*scale;
 
-        // scale samples s.t. they're more aligned to center of kernel
-        scale = lerp(0.1f, 1.0f, scale * scale);
-        sample *= scale;
-        kernel.push_back(sample);
+        kernel.emplace_back(sample);
     }
-    /* --- TODO </delete> --*/
     // ----- </sampling kernel> ------
     // ----- <random noise> -------
     vector<vec3> rotationVecs;
     int noiseSize = 4;
-    // for(auto i = 0; i < noiseSize*noiseSize; i++) {
-    //     float x =  unifDist(randomDevice)*2.0f -1.0f;
-    //     float y =  unifDist(randomDevice)*2.0f -1.0f;
-    //     rotationVecs.emplace_back(vec3(x,y,0.0f));
-    // }
-    for (unsigned int i = 0; i < 16; i++){
-        glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
-        rotationVecs.push_back(noise);
-        // rotationVecs.push_back(vec3(0.5f, 0.5f,0.0f));
+    for(auto i = 0; i < noiseSize*noiseSize; i++) {
+        float x =  unifDist(randomDevice)*2.0f -1.0f;
+        float y =  unifDist(randomDevice)*2.0f -1.0f;
+        rotationVecs.emplace_back(vec3(x,y,0.0f));
     }
+
     unsigned int rotationVecTexture;
     glGenTextures(1, &rotationVecTexture);
     glBindTexture(GL_TEXTURE_2D, rotationVecTexture);
@@ -294,7 +276,6 @@ int main() {
 
     Shader ssaoBlurShader ("shaders/deferred/quad_display.vert","shaders/ssao/blur.frag");
 
-
     Shader planeShader("shaders/primitive/plane.vert","shaders/primitive/plane.frag");
     Plane plane1(planeShader, projection);
 
@@ -314,32 +295,32 @@ int main() {
 
         // [~[~[~[~[~[~[~[~ Setup Geometry Buffer [~[~[~[~[~[~[~[~
         glBindFramebuffer(GL_FRAMEBUFFER, geometryFrameBuffer);
-        glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // ------------------ <scene> ------------------
-        glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
-        glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
-        mat4 MVP = projection*view*model;
+            // ------------------ <scene> ------------------
+            glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
+            glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
+            mat4 MVP = projection*view*model;
 
-        gizmo.draw(MVP);
-        // --- render model
-        modelShader.use();
-        modelShader.setMat4("model", &model);
-        modelShader.setMat4("view", &view);
-        modelShader.setMat4("projection", &projection);
-        backpack.Draw(modelShader);
+            gizmo.draw(MVP);
+            // --- render model
+            modelShader.use();
+            modelShader.setMat4("model", &model);
+            modelShader.setMat4("view", &view);
+            modelShader.setMat4("projection", &projection);
+            backpack.Draw(modelShader);
 
-        glm::mat4 model2 = glm::rotate(mat4(1), 3.14f/2.0f, vec3(0.0f,1.0f,0.0f));
-        modelShader.setMat4("model", &model2);
-        backpack.Draw(modelShader);
+            // glm::mat4 model2 = glm::rotate(mat4(1), 3.14f/2.0f, vec3(0.0f,1.0f,0.0f));
+            // modelShader.setMat4("model", &model2);
+            // backpack.Draw(modelShader);
+            //
+            // glm::mat4 model3 = glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f));
+            // modelShader.setMat4("model", &model3);
+            // backpack.Draw(modelShader);
 
-        glm::mat4 model3 = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f));
-        modelShader.setMat4("model", &model3);
-        backpack.Draw(modelShader);
-
-        plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));
-        plane1.draw(view, translate(mat4(1), vec3(2.0f,2.0f,-0.2f)));
+            plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));
+            plane1.draw(view, translate(mat4(1), vec3(2.0f,2.0f,-0.2f)));
 
         glBindVertexArray(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -347,76 +328,76 @@ int main() {
 
         // // [~[~[~[~[~[~[~[~ SSAO FrameBuffer [~[~[~[~[~[~[~[~
         glBindFramebuffer(GL_FRAMEBUFFER, ssaoFrameBuffer);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBindVertexArray(quadVAO);
-        ssaoShader.use();
-        ssaoShader.setInt("gPosition", 0);
-        ssaoShader.setInt("gNormal", 1);
-        ssaoShader.setInt("noise", 2);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glBindVertexArray(quadVAO);
+            ssaoShader.use();
+            ssaoShader.setInt("gPosition", 0);
+            ssaoShader.setInt("gNormal", 1);
+            ssaoShader.setInt("noise", 2);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_position);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, rotationVecTexture);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, geometryFB_position);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, rotationVecTexture);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-        glBindVertexArray(0);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+            glBindVertexArray(0);
 
         // ---- BLUR BUFFER
         glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFrameBuffer);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glBindVertexArray(quadVAO);
-        ssaoBlurShader.use();
-        ssaoBlurShader.setInt("ssao", 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-        glBindVertexArray(0);
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glBindVertexArray(quadVAO);
+            ssaoBlurShader.use();
+            ssaoBlurShader.setInt("ssao", 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+            glBindVertexArray(0);
+            // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // --- WARNING: ONLY FOR TESTING ---
+        // --- ⚠️ WARNING: ONLY FOR TESTING ---
         // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // // glDisable(GL_DEPTH_TEST);
-        // glClear(GL_COLOR_BUFFER_BIT);
-        // glBindVertexArray(quadVAO);
-        // quadDisplayShader.use();
-        // quadDisplayShader.setInt("gPosition", 0);
-        // glActiveTexture(GL_TEXTURE0);
-        // // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-        // glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-        // glBindVertexArray(0);
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //     // glDisable(GL_DEPTH_TEST);
+        //     glClear(GL_COLOR_BUFFER_BIT);
+        //     glBindVertexArray(quadVAO);
+        //     quadDisplayShader.use();
+        //     quadDisplayShader.setInt("gPosition", 0);
+        //     glActiveTexture(GL_TEXTURE0);
+        //     // glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+        //     glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
+        //     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        //     glBindVertexArray(0);
+        //     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // [~[~[~[~[~[~[~[~ Bind default FrameBuffer [~[~[~[~[~[~[~[~
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT);
-        // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
-        glBindVertexArray(quadVAO);
-        quadDisplayShader.use();
-        quadDisplayShader.setBool("enableSSAO", enableSSAO);
-        quadDisplayShader.setInt("gPosition", 0);
-        quadDisplayShader.setInt("gNormal", 1);
-        quadDisplayShader.setInt("gAlbedoSpec", 2);
-        quadDisplayShader.setInt("gAO", 3);
-        quadDisplayShader.setVec3("viewPos", camera.camPos);
-        quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 2.0f));
+            // glDisable(GL_DEPTH_TEST);
+            glClear(GL_COLOR_BUFFER_BIT);
+            // (1). bind VAO, (2). activate Texture Unit 0, (3) bind texture
+            glBindVertexArray(quadVAO);
+            quadDisplayShader.use();
+            quadDisplayShader.setBool("enableSSAO", enableSSAO);
+            quadDisplayShader.setInt("gPosition", 0);
+            quadDisplayShader.setInt("gNormal", 1);
+            quadDisplayShader.setInt("gAlbedoSpec", 2);
+            quadDisplayShader.setInt("gAO", 3);
+            quadDisplayShader.setVec3("viewPos", camera.camPos);
+            quadDisplayShader.setVec3("lightPos", vec3(0.0f, 3.0f, 2.0f));
 
-        // any texture we previously attached to Geometry FrameBuffer
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_position);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
+            // any texture we previously attached to Geometry FrameBuffer
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, geometryFB_position);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, geometryFB_normal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, geometryFB_Albedo_and_Spec);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, ssaoBlurBuffer);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-        glBindVertexArray(0);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+            glBindVertexArray(0);
 
 
 
@@ -424,7 +405,7 @@ int main() {
         // glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryFrameBuffer);
         // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // glBlitFramebuffer(
-        //         0, 0, screenWidth, SCR_HEIGHT, 0, 0, screenWidth, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        //         0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST
         // );
         // glBindFramebuffer(GL_FRAMEBUFFER, 0);
         //
@@ -490,6 +471,9 @@ void toggle_wireframe() {
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         toggle_mouse();
+    }
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        enableSSAO = !enableSSAO;
     }
 }
 

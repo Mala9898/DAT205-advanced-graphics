@@ -14,8 +14,10 @@ uniform mat4 view;
 uniform mat4 projection;
 
 void main () {
-    FragPos = vec3(model*vec4(aPos, 1.0));
-    Normal = aNormal;
+    FragPos = vec3(view*model*vec4(aPos, 1.0));
+    // this transpose-inverse compensates for non-uniform scale transformations
+    Normal = normalize(transpose(inverse(mat3(view * model))) * aNormal);
+
     TexCoords = aTexCoords;
 
     gl_Position = projection*view*model * vec4(aPos, 1.0);
