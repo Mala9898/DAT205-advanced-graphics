@@ -71,20 +71,6 @@ int main() {
     int width2, height2, nrChannels2;
     unsigned char *dataMask = stbi_load("mask.png", &width2, &height2, &nrChannels2, 0);
 
-    unsigned int textureRock;
-    glGenTextures(1, &textureRock);                // generate texture (#number of textures, textureID(s))
-    // glActiveTexture(GL_TEXTURE1);              // activate the texture unit first before binding texture
-    glBindTexture(GL_TEXTURE_2D, textureRock);     // bind texture onto texture unit #0 (GL_TEXTURE0)
-    int width3, height3, nrChannels3;
-    unsigned char *dataRock = stbi_load("textures/wood.jpg", &width3, &height3, &nrChannels3, 0);
-    if (dataRock) {
-        print("[loaded] ROCK! channels:");
-        print(std::to_string(nrChannels3));
-    }
-    // set texture wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, dataRock);
     // load and create a texture
     // -------------------------
     // load image, create texture and generate mipmaps
@@ -100,7 +86,8 @@ int main() {
     }
     width =100;
     height = 100;
-
+    // width =10;
+    // height = 10;
 
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -136,17 +123,16 @@ int main() {
 
         }
     }
-    std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
     stbi_image_free(data);
 
     // --- texcoords
     std::vector<float> texCoords;
     for(int i = 0; i < height; i++){
         for(int j = 0; j < width; j++){
-            // texCoords.push_back( (float) i/100.0f );   // vx
-            // texCoords.push_back( (float) j/100.0f);   // vy
-            texCoords.push_back( 0.0f );   // vx
-            texCoords.push_back( 0.0f);   // vy
+            texCoords.push_back( (float) j/100.0f );   // vx
+            texCoords.push_back( (float) i/100.0f);   // vy
+            // texCoords.push_back( 0.0f );   // vx
+            // texCoords.push_back( 0.0f);   // vy
         }
     }
 
@@ -158,7 +144,6 @@ int main() {
             }
         }
     }
-    std::cout << "Loaded " << indices.size() << " indices" << std::endl;
 
     const int numStrips = (height-1)/rez;
     const int numTrisPerStrip = (width/rez)*2-2;
@@ -166,7 +151,7 @@ int main() {
     std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
 
     // first, configure the cube's VAO (and terrainVBO + terrainIBO)
-    unsigned int terrainVAO, terrainVBO,texVBO, terrainIBO;
+    unsigned int terrainVAO, terrainVBO,texVBO, terrainIBO, textureRock;
     glGenVertexArrays(1, &terrainVAO);
     glBindVertexArray(terrainVAO);
 
@@ -178,6 +163,35 @@ int main() {
     glEnableVertexAttribArray(0);
 
     // tex attribute
+    glGenTextures(1, &textureRock);        // generate texture (#number of textures, textureID(s))
+        string texture_name = "textures/rock.png";
+        glActiveTexture(GL_TEXTURE0);                 // activate the texture unit first before binding texture
+        glBindTexture(GL_TEXTURE_2D, textureRock); // bind texture onto texture unit #0 (GL_TEXTURE0)
+        // glActiveTexture(GL_TEXTURE1);              // set additional textures, 0,...,15
+        // glBindTexture(GL_TEXTURE_2D, texture2);
+        // set texture wrapping
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        stbi_set_flip_vertically_on_load(true);
+        // container2.png
+        /*
+         * last parameter: desired channels
+         * STBI_default = 0, STBI_grey = 1, STBI_grey_alpha = 2, STBI_rgb = 3, STBI_rgb_alpha = 4
+         */
+        int width3, height3, nrChannels3;
+        unsigned char *dataRock = stbi_load(texture_name.c_str(), &width3, &height3, &nrChannels3, STBI_rgb_alpha);
+        if (data) {
+            // load image into texture
+            // jpg
+            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            // png
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width3, height3, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRock);
+            glGenerateMipmap(GL_TEXTURE_2D); // generate mipmaps
+            std::cout << "loaded texture: "+ texture_name << std::endl;
+        } else {
+            std::cout << "failed to load texture" << std::endl;
+        }
+        stbi_image_free(dataRock); // free image memory
     glGenBuffers(1, &texVBO);
     glBindBuffer(GL_ARRAY_BUFFER, texVBO);
     glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), &texCoords[0], GL_STATIC_DRAW);
@@ -190,7 +204,7 @@ int main() {
 
     Shader heightMapShader ("shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag");
     heightMapShader.use();
-    heightMapShader.setInt("myTexture",1);
+    heightMapShader.setInt("myTexture",2);
     heightMapShader.setFloat("tMin",tMin);
     heightMapShader.setFloat("tMax",tMax);
 
@@ -198,8 +212,8 @@ int main() {
     Shader cubeShader ("shaders/forward/cube.vert", "shaders/forward/cube.frag");
     cubeShader.use();
     cubeShader.setMat4("projection", &projection);
-    // MyCube cube ("textures/wood.jpg");
-    MyCube cube ("textures/rock.jpeg");
+    MyCube cube ("textures/wood.jpg");
+    // MyCube cube ("textures/rock.jpeg");
 
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW);
@@ -235,13 +249,9 @@ int main() {
         // be sure to activate shader when setting uniforms/drawing objects
         heightMapShader.use();
         heightMapShader.setMat4("MVP", &MVP);
-        // heightMapShader.setMat4("projection", &projection);
-        // heightMapShader.setMat4("view", &view);
-        //
-        // world transformation
-        // glm::mat4 model = glm::mat4(1.0f);
         heightMapShader.setMat4("model", &model);
-        glActiveTexture(GL_TEXTURE1);
+        heightMapShader.setInt("myTexture", 2);
+        glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, textureRock);
 
         // render the cube
