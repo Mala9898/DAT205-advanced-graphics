@@ -19,7 +19,7 @@ public:
     glm::vec3 camY = glm::vec3(0.0f,1.0f,0.0f);
     glm::vec3 camFront = glm::vec3(0.0f,0.0f,-1.0f);
     glm::vec3 camFrontFlipped = glm::vec3(0.0f,0.0f,-1.0f);
-    glm::vec3 camPos = glm::vec3(0.0f,2.0f,3.0f);
+    glm::vec3 camPos = glm::vec3(0.0f,30.0f,10.0f);
     float sens = 0.1f;
     float speed = 0.05f;
     float multiplier = 4.0f;

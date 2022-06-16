@@ -20,6 +20,7 @@
 #include "utils/Cube.h"
 #include "utils/PerlinNoise.h"
 #include "utils/Plane.h"
+#include "utils/Skybox.h"
 // #include "utils/Plane.h"
 // #include "utils/Cube.h"
 
@@ -52,7 +53,7 @@ Shader waterFloorShader;
 Shader waterShader;
 
 float blendFactor = 0.194f;
-float blendFactor2 = -6.81f;
+float blendFactor2 = -7.5f;
 float waterOffset = 2.9f;
 
 
@@ -99,20 +100,12 @@ int main() {
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     unsigned char *data = stbi_load("heightmap_test.png", &width, &height, &nrChannels, 0);
-    if (data){
-        std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
-    }
-    else{
-        std::cout << "Failed to load texture" << std::endl;
-    }
     width =100;
     height = 100;
     // width =10;
     // height = 10;
 
 
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
     float tMin=100.0f;
     float tMax = -100.0f;
     std::vector<float> vertices;
@@ -120,7 +113,7 @@ int main() {
     float yScale = 16.0f / 256.0f, yShift = 5.0f;
     int rez = 1;
     unsigned bytePerPixel = nrChannels2;
-
+    // --- terrain verts
     for(int i = 0; i < height; i++){
         for(int j = 0; j < width; j++){
             unsigned char* pixelOffset = dataMask + (j + width * i) * bytePerPixel;
@@ -146,17 +139,19 @@ int main() {
         }
     }
     stbi_image_free(data);
+
+    // --- normal map data
     float* normalMapArr = new float[3*100*100];
     for(auto i = 0; i < 100; i++) {
         for(auto j = 0; j < 100; j++) {
-            // i = z
-            // j = x
             int x =j;
             int z = i;
+
             float heightL = vertices[3*((x-1)*100 +z) + 1]; //getHeight(x-1, z, generator);
             float heightR = vertices[3*((x+1)*100 +z) + 1];
             float heightD = vertices[3*((x)*100 +z-1) + 1];
             float heightU = vertices[3*((x)*100 +z+1) + 1];
+            // vec3 normal (heightL - heightR, 2.0f, heightD - heightU);
             vec3 normal (heightL - heightR, 2.0f, heightD - heightU);
             normal = glm::normalize(normal);
 
@@ -176,7 +171,7 @@ int main() {
             // texCoords.push_back( 0.0f);   // vy
         }
     }
-
+    // --- indices
     std::vector<unsigned> indices;
     for(unsigned i = 0; i < height-1; i += rez){
         for(unsigned j = 0; j < width; j += rez){
@@ -186,10 +181,8 @@ int main() {
         }
     }
 
-    const int numStrips = (height-1)/rez;
+    const int nStrips = (height - 1) / rez;
     const int numTrisPerStrip = (width/rez)*2-2;
-    std::cout << "Created lattice of " << numStrips << " strips with " << numTrisPerStrip << " triangles each" << std::endl;
-    std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
 
     // first, configure the cube's VAO (and terrainVBO + terrainIBO)
     unsigned int terrainVAO, terrainVBO,texVBO, terrainIBO, textureRock;
@@ -357,7 +350,7 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, textureRockGrass);
 
             glBindVertexArray(terrainVAO);
-            for(unsigned strip = 0; strip < numStrips; strip++){
+            for(unsigned strip = 0; strip < nStrips; strip++){
                 glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
             }
             // --- </render mountain 🏔> ----
@@ -402,7 +395,7 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, textureRockGrass);
 
             glBindVertexArray(terrainVAO);
-            for(unsigned strip = 0; strip < numStrips; strip++){
+            for(unsigned strip = 0; strip < nStrips; strip++){
                 glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
             }
             // --- </render mountain 🏔> ----
@@ -410,7 +403,7 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER,0);
             glFrontFace(GL_CCW);
             /* --- default framebuffer --- */
-            glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+            glClearColor(0.721f, 1.0f, 1.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the color above
 
             gizmo.draw(MVP);
@@ -466,10 +459,11 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, textureRockGrass);
 
             glBindVertexArray(terrainVAO);
-            for(unsigned strip = 0; strip < numStrips; strip++){
+            for(unsigned strip = 0; strip < nStrips; strip++){
                 glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
             }
             // --- </render mountain 🏔> ----
+
 
 
 

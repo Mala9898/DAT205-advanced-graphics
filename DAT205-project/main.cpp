@@ -66,11 +66,6 @@ GLFWwindow *window = nullptr;
 
 unsigned int geometryFrameBuffer;
 unsigned int geometryFB_position, geometryFB_normal, geometryFB_Albedo_and_Spec;
-// TODO
-float lerp(float a, float b, float f)
-{
-    return a + f * (b - a);
-}
 
 int main() {
 
@@ -90,17 +85,29 @@ int main() {
     // glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    ParticleSystem ps (500, false);
+    ParticleSystem firePS (500, false);
     {
-        ps.gravity = vec3(0.0f,0.1f,0.0f);
-        ps.lifetime = 3.0f;
-        ps.setVelocity(0.1f, 1.0f);
+        firePS.gravity = vec3(0.0f, 0.1f, 0.0f);
+        firePS.lifetime = 3.0f;
+        firePS.setVelocity(0.1f, 1.0f);
+        // firePS.setPhi(0,3.14f);
+        firePS.setTheta(0.0f, 3.14f / 4.0f);
+        firePS.growSize = true;
+        firePS.sizeEnd = 3.0f;
+        firePS.continuous = true;
+        firePS.generate("textures/fire3.png");
+    }
+    ParticleSystem waterPS (500, false);
+    {
+        waterPS.gravity = vec3(0.0f,-9.8f,0.0f);
+        waterPS.lifetime = 5.0f;
+        waterPS.setVelocity(15.0f, 20.0f);
         // ps.setPhi(0,3.14f);
-        ps.setTheta(0.0f, 3.14f/4.0f);
-        ps.growSize = true;
-        ps.sizeEnd = 3.0f;
-        ps.continuous = true;
-        ps.generate("textures/fire3.png");
+        waterPS.setTheta(0.0f, 3.14f/4.0f);
+        waterPS.growSize = true;
+        waterPS.sizeEnd = 3.0f;
+        waterPS.continuous = true;
+        waterPS.generate("textures/splash.png");
     }
 
     // ------------------ <Screen Quad> ------------------
@@ -132,13 +139,10 @@ int main() {
     quadDisplayShader.setInt("myTexture", 0); // texture unit 0
     // ------------------ </Screen Quad> ------------------
 
-    // ⚠️ shader BROKEN
-    // Shader modelShader ("shaders/model/model.vert","shaders/model/model_primitive.frag");
-    // string modelName = "models/model_plane.obj";
-    // Model backpack(&modelName[0]);
 
     Shader modelShader ("shaders/model/model.vert","shaders/model/model.frag");
-    string modelName = "models/backpack.obj";
+    // string modelName = "models/backpack.obj";
+    string modelName = "models/bucket.obj";
     Model backpack(&modelName[0]);
 
     // ---- Pipeline ----
@@ -299,11 +303,13 @@ int main() {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // ------------------ <scene> ------------------
+            float scaleFactor = 5.0f;
             glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
-            glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
+            glm::mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f))
+                    *scale(mat4(1), vec3(scaleFactor,scaleFactor,scaleFactor));
             mat4 MVP = projection*view*model;
 
-            gizmo.draw(MVP);
+            // gizmo.draw(MVP);
             // --- render model
             modelShader.use();
             modelShader.setMat4("model", &model);
@@ -319,7 +325,7 @@ int main() {
             // modelShader.setMat4("model", &model3);
             // backpack.Draw(modelShader);
 
-            plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));
+            // plane1.draw(view, translate(mat4(1), vec3(0.0f,2.0f,-0.2f)));
             plane1.draw(view, translate(mat4(1), vec3(2.0f,2.0f,-0.2f)));
 
         glBindVertexArray(0);
@@ -412,8 +418,10 @@ int main() {
         // --- render particle system
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
-        mat4 MV = view*model;
-        ps.draw(MV, projection);
+        // mat4 MV = view*model;
+        mat4 MV = view*translate(mat4(1), vec3(4.0f,0.0f,0.0f));
+        firePS.draw(MV, projection);
+        waterPS.draw(view*translate(mat4(1), vec3(0.0f,0.2f,0.0f)), projection);
         glDisable(GL_BLEND);
 
 

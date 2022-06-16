@@ -14,7 +14,7 @@ out vec4 FragColor;
 
 void main () {
     // --- lighting
-    vec3 albedo = vec3(0,0,0.5); //todo
+    vec3 albedo = vec3(0.278, 0.960, 1); //todo
     vec3 fragLight = normalize(fragLightDir);
     vec3 fragNormal = normalize(fragNormal);
 

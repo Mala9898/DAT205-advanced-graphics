@@ -39,7 +39,8 @@ void main() {
     vec3 rocClay = texture(myTexture, TexCoords*tilingFactor).xyz;
 
 
-    vec3 n = texture(myTexture, TexCoords).xyz;
+    vec3 n = texture(myTexture, TexCoords).xyz; // TODO works
+//    vec3 n  = normalize(view* vec4(texture(myTexture, TexCoords).xyz, 1)).xyz;
 //    FragColor = vec4(h, h, h, 1.0);
 //    vec3 albedo = mix(rock, rocGround, h);
     vec3 temp = mix(rock, rocGround, elasticInOut(h));
@@ -58,7 +59,9 @@ void main() {
 //    vec3 specular = min(spec,1)*vec3(0.1,0.1,0.1);//vec3(texture(material.specular, TexCoords)); //*material.specular;
 
 //    FragColor = vec4(diffuse+ambient+specular, 1);
-    FragColor = vec4(ambient+diffuse, 1);
+    vec3 slope = (n.y > 0.95) ? vec3(1,0,0) : vec3(0,0,0);
+//    FragColor = vec4(ambient+diffuse, 1); // WORKS
+    FragColor = vec4(ambient+diffuse + slope, 1);
 //    if (Height>10)
 //        FragColor = vec4(1,0,0, 1);
 }
