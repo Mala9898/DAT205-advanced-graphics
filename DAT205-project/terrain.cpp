@@ -17,6 +17,7 @@
 #include "includes/utils/xyz_gizmo.h"
 #include "includes/systems/ParticleSystem.h"
 #include "includes/utils/Model.h"
+#include "utils/Cube.h"
 // #include "utils/Plane.h"
 // #include "utils/Cube.h"
 
@@ -43,7 +44,9 @@ GLFWwindow *window = nullptr;
 
 
 int main() {
-
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
     window = init_gl();
     print("debug mode activated");
 
@@ -53,11 +56,12 @@ int main() {
     camera = FreeCamera(window);
     glfwSetCursorPosCallback(window, mouse_callback);                // get callback for mouse change
     glfwSetKeyCallback(window, keyboard_callback);
-    ImGuiIO& io = init_IMGUI(window);
+
+    // ImGuiIO& io = init_IMGUI(window);
     float offset = 0.0f;
 
-
-    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    // glDisable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     vec3 lightPos (0.0f, 3.0f,0.0f);
@@ -93,9 +97,12 @@ int main() {
             unsigned char y = pixelOffset[0];
 
             // vertex
-            vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
-            vertices.push_back( (int) y * yScale - yShift);   // vy
-            vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
+            // vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
+            // vertices.push_back( (int) y * yScale - yShift);   // vy
+            // vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
+            vertices.push_back( (float)i );   // vx
+            vertices.push_back( (float) 0);   // vy
+            vertices.push_back( (float) j);   // vz
         }
     }
     std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
@@ -138,10 +145,16 @@ int main() {
 
     Shader heightMapShader ("shaders/terrain.vert", "shaders/terrain.frag");
 
+    // --- cube
+    Shader cubeShader ("shaders/forward/cube.vert", "shaders/forward/cube.frag");
+    cubeShader.use();
+    cubeShader.setMat4("projection", &projection);
+    MyCube cube ("textures/wood.jpg");
+
     while(!glfwWindowShouldClose(window)){
         // --- process inputs
         glfwPollEvents();
-        camera.setStatus(!io.WantCaptureMouse);
+        // camera.setStatus(!io.WantCaptureMouse);
         // --- camera
         GLdouble xPos, yPos;
         glfwGetCursorPos(window, &xPos, &yPos);
@@ -149,39 +162,37 @@ int main() {
         camera.handleKeyboard();
 
         // ------------------ <scene> ------------------
-        mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
+        glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
         mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
         mat4 MVP = projection*view*model;
 
 
         /* --- default framebuffer --- */
-        glBindFramebuffer(GL_FRAMEBUFFER,0);
-        // glEnable(GL_DEPTH_TEST);
-
         glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the color above
 
         gizmo.draw(MVP);
+        cubeShader.use();
+        cubeShader.setMat4("view", &view);
+        // mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 3.0f,0.0f));
+        cubeShader.setMat4("model",&model);
+        cube.Draw(cubeShader);
 
-        // -- terrain
+
         // be sure to activate shader when setting uniforms/drawing objects
         heightMapShader.use();
-
-        // view/projection transformations
-        // glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100000.0f);
-        // glm::mat4 view = camera.GetViewMatrix();
-        heightMapShader.setMat4("projection", &projection);
-        heightMapShader.setMat4("view", &view);
-
+        heightMapShader.setMat4("MVP", &MVP);
+        // heightMapShader.setMat4("projection", &projection);
+        // heightMapShader.setMat4("view", &view);
+        //
         // world transformation
-        glm::mat4 model1 = glm::mat4(1.0f);
-        heightMapShader.setMat4("model", &model1);
+        // glm::mat4 model = glm::mat4(1.0f);
+        heightMapShader.setMat4("model", &model);
 
         // render the cube
         glBindVertexArray(terrainVAO);
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        for(unsigned strip = 0; strip < numStrips; strip++)
-        {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        for(unsigned strip = 0; strip < numStrips; strip++){
             glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
                            numTrisPerStrip+2,   // number of indices to render
                            GL_UNSIGNED_INT,     // index data type
@@ -192,31 +203,31 @@ int main() {
         // ------------------ </scene> ------------------
 
 
-        // --- IMGUI
-        {
-            // Start the Dear ImGui frame
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-            // if (show_demo_window)
-            //     ImGui::ShowDemoWindow(&show_demo_window);
-
-            ImGui::Begin("MY WINDOW!");                          // Create a window called "Hello, world!" and append into it.
-            string tt = "time: "+std::to_string(glfwGetTime()-startTime);
-            ImGui::Text(tt.c_str());
-            if (ImGui::Button("Hide mouse"))
-                toggle_mouse();
-            if (ImGui::Button("Wireframe"))
-                toggle_wireframe();
-
-            ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-
-        // Rendering
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        // // --- IMGUI
+        // {
+        //     // Start the Dear ImGui frame
+        //     ImGui_ImplOpenGL3_NewFrame();
+        //     ImGui_ImplGlfw_NewFrame();
+        //     ImGui::NewFrame();
+        //     // if (show_demo_window)
+        //     //     ImGui::ShowDemoWindow(&show_demo_window);
+        //
+        //     ImGui::Begin("MY WINDOW!");                          // Create a window called "Hello, world!" and append into it.
+        //     string tt = "time: "+std::to_string(glfwGetTime()-startTime);
+        //     ImGui::Text(tt.c_str());
+        //     if (ImGui::Button("Hide mouse"))
+        //         toggle_mouse();
+        //     if (ImGui::Button("Wireframe"))
+        //         toggle_wireframe();
+        //
+        //     ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
+        //     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        //     ImGui::End();
+        // }
+        //
+        // // Rendering
+        // ImGui::Render();
+        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // -- swab buffers
         glfwSwapBuffers(window);
