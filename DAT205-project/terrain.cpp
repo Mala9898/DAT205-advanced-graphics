@@ -18,6 +18,7 @@
 #include "includes/systems/ParticleSystem.h"
 #include "includes/utils/Model.h"
 #include "utils/Cube.h"
+#include "utils/PerlinNoise.h"
 // #include "utils/Plane.h"
 // #include "utils/Cube.h"
 
@@ -62,7 +63,14 @@ int main() {
     // glDisable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    vec3 lightPos (0.0f, 3.0f,0.0f);
+    vec3 lightPos (0.0f, 40.0f,0.0f);
+
+    const siv::PerlinNoise::seed_type seed = 123456u;
+    const siv::PerlinNoise perlin{ seed };
+
+    int width2, height2, nrChannels2;
+    unsigned char *dataMask = stbi_load("mask.png", &width2, &height2, &nrChannels2, 0);
+
 
     // load and create a texture
     // -------------------------
@@ -71,36 +79,46 @@ int main() {
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     unsigned char *data = stbi_load("heightmap_test.png", &width, &height, &nrChannels, 0);
-    if (data)
-    {
+    if (data){
         std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
     }
-    else
-    {
+    else{
         std::cout << "Failed to load texture" << std::endl;
     }
-    // width =10;
-    // height = 10;
+    width =100;
+    height = 100;
+
 
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     std::vector<float> vertices;
     // float yScale = 64.0f / 256.0f, yShift = 16.0f;
-    float yScale = 16.0f / 256.0f, yShift = 0.0f;
+    float yScale = 16.0f / 256.0f, yShift = 5.0f;
     int rez = 1;
-    unsigned bytePerPixel = nrChannels;
+    unsigned bytePerPixel = nrChannels2;
     for(int i = 0; i < height; i++)
     {
         for(int j = 0; j < width; j++)
         {
-            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
+            unsigned char* pixelOffset = dataMask + (j + width * i) * bytePerPixel;
             unsigned char y = pixelOffset[0];
 
             // vertex
             vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
             // vertices.push_back( (int) y * yScale - yShift);   // vy
-            vertices.push_back( glm::sin((float)i) - yShift);   // vy
+            // vertices.push_back( 5.0f*glm::sin((float)i/2.0f) + yShift);   // vy
+            float oct1 = 0.05f; //smooth
+            float oct2 = 0.2f;
+            float oct3 = 0.4f;
+
+            const double noise1 = perlin.noise2D_01((i * oct1), (j * oct1));
+            const double noise2 = 0.0f;//perlin.noise2D_01((i * oct2), (j * oct2));
+            const double noise3 = 0.1f*(perlin.noise2D_01((i * oct3), (j * oct3)));
+            double totalNoise = noise1+noise2+noise3;
+            double toAdd = (30.0f*totalNoise-20.0f)*y;
+            vertices.push_back(toAdd/256.0f );   // vy
+
             vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
             // vertices.push_back( (float)i );   // vx
             // vertices.push_back( (float) 0);   // vy
@@ -145,7 +163,7 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainIBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned), &indices[0], GL_STATIC_DRAW);
 
-    Shader heightMapShader ("shaders/terrain.vert", "shaders/terrain.frag");
+    Shader heightMapShader ("shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag");
 
     // --- cube
     Shader cubeShader ("shaders/forward/cube.vert", "shaders/forward/cube.frag");
