@@ -15,6 +15,8 @@ uniform float tMax;
 uniform vec3 viewPos;
 uniform mat4 model;
 uniform mat4 view;
+uniform float blendFactor = 1;
+uniform float blendFactor2 = 0;
 
 //credit: https://github.com/glslify/glsl-easings
 float elasticInOut(float t) {
@@ -41,7 +43,7 @@ void main() {
 //    FragColor = vec4(h, h, h, 1.0);
 //    vec3 albedo = mix(rock, rocGround, h);
     vec3 temp = mix(rock, rocGround, elasticInOut(h));
-    vec3 albedo = mix (temp, rocClay, h);
+    vec3 albedo = mix (temp, rocClay, elasticInOut((Height*blendFactor - blendFactor2)/amplitude));
 
 
     vec3 ambient = vec3(0.2,0.2,0.2) *albedo;
