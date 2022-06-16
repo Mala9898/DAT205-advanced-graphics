@@ -71,7 +71,20 @@ int main() {
     int width2, height2, nrChannels2;
     unsigned char *dataMask = stbi_load("mask.png", &width2, &height2, &nrChannels2, 0);
 
-
+    unsigned int textureRock;
+    glGenTextures(1, &textureRock);                // generate texture (#number of textures, textureID(s))
+    // glActiveTexture(GL_TEXTURE1);              // activate the texture unit first before binding texture
+    glBindTexture(GL_TEXTURE_2D, textureRock);     // bind texture onto texture unit #0 (GL_TEXTURE0)
+    int width3, height3, nrChannels3;
+    unsigned char *dataRock = stbi_load("textures/wood.jpg", &width3, &height3, &nrChannels3, 0);
+    if (dataRock) {
+        print("[loaded] ROCK! channels:");
+        print(std::to_string(nrChannels3));
+    }
+    // set texture wrapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, dataRock);
     // load and create a texture
     // -------------------------
     // load image, create texture and generate mipmaps
@@ -92,22 +105,19 @@ int main() {
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
+    float tMin=100.0f;
+    float tMax = -100.0f;
     std::vector<float> vertices;
     // float yScale = 64.0f / 256.0f, yShift = 16.0f;
     float yScale = 16.0f / 256.0f, yShift = 5.0f;
     int rez = 1;
     unsigned bytePerPixel = nrChannels2;
-    for(int i = 0; i < height; i++)
-    {
-        for(int j = 0; j < width; j++)
-        {
+    for(int i = 0; i < height; i++){
+        for(int j = 0; j < width; j++){
             unsigned char* pixelOffset = dataMask + (j + width * i) * bytePerPixel;
             unsigned char y = pixelOffset[0];
-
             // vertex
             vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
-            // vertices.push_back( (int) y * yScale - yShift);   // vy
-            // vertices.push_back( 5.0f*glm::sin((float)i/2.0f) + yShift);   // vy
             float oct1 = 0.05f; //smooth
             float oct2 = 0.2f;
             float oct3 = 0.4f;
@@ -116,25 +126,34 @@ int main() {
             const double noise2 = 0.0f;//perlin.noise2D_01((i * oct2), (j * oct2));
             const double noise3 = 0.1f*(perlin.noise2D_01((i * oct3), (j * oct3)));
             double totalNoise = noise1+noise2+noise3;
-            double toAdd = (30.0f*totalNoise-20.0f)*y;
-            vertices.push_back(toAdd/256.0f );   // vy
-
+            double toAdd = ((30.0f*totalNoise-20.0f)*y)/256.0f;
+            if(toAdd>tMax)
+                tMax = toAdd;
+            if(toAdd <tMin)
+                tMin = toAdd;
+            vertices.push_back(toAdd );   // vy
             vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
-            // vertices.push_back( (float)i );   // vx
-            // vertices.push_back( (float) 0);   // vy
-            // vertices.push_back( (float) j);   // vz
+
         }
     }
     std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
     stbi_image_free(data);
 
+    // --- texcoords
+    std::vector<float> texCoords;
+    for(int i = 0; i < height; i++){
+        for(int j = 0; j < width; j++){
+            // texCoords.push_back( (float) i/100.0f );   // vx
+            // texCoords.push_back( (float) j/100.0f);   // vy
+            texCoords.push_back( 0.0f );   // vx
+            texCoords.push_back( 0.0f);   // vy
+        }
+    }
+
     std::vector<unsigned> indices;
-    for(unsigned i = 0; i < height-1; i += rez)
-    {
-        for(unsigned j = 0; j < width; j += rez)
-        {
-            for(unsigned k = 0; k < 2; k++)
-            {
+    for(unsigned i = 0; i < height-1; i += rez){
+        for(unsigned j = 0; j < width; j += rez){
+            for(unsigned k = 0; k < 2; k++){
                 indices.push_back(j + width * (i + k*rez));
             }
         }
@@ -147,29 +166,43 @@ int main() {
     std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
 
     // first, configure the cube's VAO (and terrainVBO + terrainIBO)
-    unsigned int terrainVAO, terrainVBO, terrainIBO;
+    unsigned int terrainVAO, terrainVBO,texVBO, terrainIBO;
     glGenVertexArrays(1, &terrainVAO);
     glBindVertexArray(terrainVAO);
 
     glGenBuffers(1, &terrainVBO);
     glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), &vertices[0], GL_STATIC_DRAW);
-
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // tex attribute
+    glGenBuffers(1, &texVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, texVBO);
+    glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), &texCoords[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
 
     glGenBuffers(1, &terrainIBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainIBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned), &indices[0], GL_STATIC_DRAW);
 
     Shader heightMapShader ("shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag");
+    heightMapShader.use();
+    heightMapShader.setInt("myTexture",1);
+    heightMapShader.setFloat("tMin",tMin);
+    heightMapShader.setFloat("tMax",tMax);
 
     // --- cube
     Shader cubeShader ("shaders/forward/cube.vert", "shaders/forward/cube.frag");
     cubeShader.use();
     cubeShader.setMat4("projection", &projection);
-    MyCube cube ("textures/wood.jpg");
+    // MyCube cube ("textures/wood.jpg");
+    MyCube cube ("textures/rock.jpeg");
+
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CW);
 
     while(!glfwWindowShouldClose(window)){
         // --- process inputs
@@ -208,6 +241,8 @@ int main() {
         // world transformation
         // glm::mat4 model = glm::mat4(1.0f);
         heightMapShader.setMat4("model", &model);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureRock);
 
         // render the cube
         glBindVertexArray(terrainVAO);
