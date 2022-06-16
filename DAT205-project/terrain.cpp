@@ -53,6 +53,7 @@ Shader waterShader;
 
 float blendFactor = 0.194f;
 float blendFactor2 = -6.81f;
+float waterOffset = 1.0f;
 
 
 int main() {
@@ -331,12 +332,6 @@ int main() {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            float floorScaleFactor = 100.0f;
-            mat4 floorModelMatrix = glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
-                *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
-
-
-
             gizmo.draw(MVP);
             // --- <render mountain 🏔> ----
             glFrontFace(GL_CW);
@@ -371,7 +366,7 @@ int main() {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            vec3 flip(camera.camPos.x, 1-camera.camPos.y, camera.camPos.z);
+            vec3 flip(camera.camPos.x, waterOffset-camera.camPos.y, camera.camPos.z);
             mat4 vMat = glm::lookAt(flip, flip+camera.camFrontFlipped, camera.camYflippped);
             // -- render "reflected" scene
 
@@ -381,12 +376,14 @@ int main() {
             mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 1.0f,0.0f));
             cubeShader.setMat4("model",&cubeModelM);
             cube.Draw(cubeShader);
+
             // --- <render mountain 🏔> ----
-            glFrontFace(GL_CW);
+            glFrontFace(GL_CCW);
             heightMapShader.use();
-            heightMapShader.setMat4("MVP", &MVP);
+            // heightMapShader.setMat4("MVP", &MVP);
+            heightMapShader.setMat4("projection", &projection);
             heightMapShader.setMat4("model", &model);
-            heightMapShader.setMat4("view", &view);
+            heightMapShader.setMat4("view", &vMat);
             heightMapShader.setInt("myTexture", 2);
             heightMapShader.setInt("normalTexture", 3);
             heightMapShader.setInt("textureRockGround", 4);
@@ -434,11 +431,12 @@ int main() {
             // // waterShader.setInt("textureRefract", 1);
             // waterShader.setVec3("lightPos", lightPos);
             // floorModelMatrix = translate(floorModelMatrix, vec3(0.0f, 0.0f, -0.2f));
-            // float floorScaleFactor = 5.0f;
-            // mat4 floorModelMatrix = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
-            //         *scale(floorModelMatrix, vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
+            float floorScaleFactor = 100.0f;
+            mat4 floorModelMatrix = translate(mat4(1), vec3(0.0f, waterOffset, 0.0f))
+                    *glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+                    *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
 
-            water.draw(view, floorModelMatrix);
+            water.draw(view, translate(mat4(1), vec3(0.0f, waterOffset,0.0f))*floorModelMatrix );
 
             // --- <render mountain 🏔> ----
             glFrontFace(GL_CW);
@@ -492,6 +490,7 @@ int main() {
 
             ImGui::SliderFloat("blend factor",&blendFactor, 0.0f,5.0f);
             ImGui::SliderFloat("blend factor2",&blendFactor2, -10.0f,10.0f);
+            ImGui::SliderFloat("water offset",&waterOffset, 0.0f,20.0f);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
