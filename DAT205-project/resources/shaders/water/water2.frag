@@ -31,7 +31,7 @@ void main () {
     refractColor = texture(textureRefract, (vec2(glp.x,glp.y))/(2.0*glp.w)+0.5);
     reflectColor = texture(textureReflect, (vec2(glp.x,-glp.y))/(2.0*glp.w)+0.5);
     //    reflectColor = texture(textureReflect, (vec2(glp.x,glp.y))/(2.0*glp.w)+0.5); // modified
-    mixColor = (0.5 * refractColor) + (0.5 * reflectColor);
+    mixColor = (0.5 * refractColor) + (0.2 * reflectColor);
 
     //    FragColor = vec4((ambient+diffuse)*mixColor.xyz +specular, 1);
     //    FragColor = vec4(ambient+diffuse+specular, 0.8);
@@ -40,7 +40,7 @@ void main () {
     //    FragColor = texture(textureRefract, TexCoords);
     //    FragColor = mix(refractColor, reflectColor, 0.5);
     //    FragColor = vec4((mixColor.xyz * (ambient + diffuse) + 0.2*specular), 1.0);
-    FragColor = vec4((mixColor.xyz + diffuse*0.2 ), 1.0);
+    FragColor = vec4((mixColor.xyz + diffuse*0.4 ), 1.0);
     //    FragColor = vec4(0,0,1,1);
 
     //    // ambient

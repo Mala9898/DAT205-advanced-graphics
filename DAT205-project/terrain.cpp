@@ -53,7 +53,7 @@ Shader waterShader;
 
 float blendFactor = 0.194f;
 float blendFactor2 = -6.81f;
-float waterOffset = 1.0f;
+float waterOffset = 2.9f;
 
 
 int main() {
@@ -436,7 +436,8 @@ int main() {
             // mat4 floorModelMatrix = translate(mat4(1), vec3(0.0f, waterOffset, 0.0f))
             //         *glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
             //         *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
-            mat4 floorModelMatrix = glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+            mat4 floorModelMatrix = translate(mat4(1), vec3(0.0f,waterOffset,0.0f))
+                                *glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
                                 *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
 
             glFrontFace(GL_CCW);
