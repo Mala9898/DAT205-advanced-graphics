@@ -44,9 +44,7 @@ GLFWwindow *window = nullptr;
 
 
 int main() {
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
+
     window = init_gl();
     print("debug mode activated");
 
@@ -57,7 +55,7 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);                // get callback for mouse change
     glfwSetKeyCallback(window, keyboard_callback);
 
-    // ImGuiIO& io = init_IMGUI(window);
+    ImGuiIO& io = init_IMGUI(window);
     float offset = 0.0f;
 
     glEnable(GL_DEPTH_TEST);
@@ -72,7 +70,7 @@ int main() {
     // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
-    unsigned char *data = stbi_load("iceland.png", &width, &height, &nrChannels, 0);
+    unsigned char *data = stbi_load("heightmap_test.png", &width, &height, &nrChannels, 0);
     if (data)
     {
         std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
@@ -81,12 +79,15 @@ int main() {
     {
         std::cout << "Failed to load texture" << std::endl;
     }
+    // width =10;
+    // height = 10;
 
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     std::vector<float> vertices;
-    float yScale = 64.0f / 256.0f, yShift = 16.0f;
+    // float yScale = 64.0f / 256.0f, yShift = 16.0f;
+    float yScale = 16.0f / 256.0f, yShift = 0.0f;
     int rez = 1;
     unsigned bytePerPixel = nrChannels;
     for(int i = 0; i < height; i++)
@@ -97,12 +98,13 @@ int main() {
             unsigned char y = pixelOffset[0];
 
             // vertex
-            // vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
+            vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
             // vertices.push_back( (int) y * yScale - yShift);   // vy
-            // vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
-            vertices.push_back( (float)i );   // vx
-            vertices.push_back( (float) 0);   // vy
-            vertices.push_back( (float) j);   // vz
+            vertices.push_back( glm::sin((float)i) - yShift);   // vy
+            vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
+            // vertices.push_back( (float)i );   // vx
+            // vertices.push_back( (float) 0);   // vy
+            // vertices.push_back( (float) j);   // vz
         }
     }
     std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
@@ -154,7 +156,7 @@ int main() {
     while(!glfwWindowShouldClose(window)){
         // --- process inputs
         glfwPollEvents();
-        // camera.setStatus(!io.WantCaptureMouse);
+        camera.setStatus(!io.WantCaptureMouse);
         // --- camera
         GLdouble xPos, yPos;
         glfwGetCursorPos(window, &xPos, &yPos);
@@ -191,7 +193,7 @@ int main() {
 
         // render the cube
         glBindVertexArray(terrainVAO);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         for(unsigned strip = 0; strip < numStrips; strip++){
             glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
                            numTrisPerStrip+2,   // number of indices to render
@@ -203,31 +205,31 @@ int main() {
         // ------------------ </scene> ------------------
 
 
-        // // --- IMGUI
-        // {
-        //     // Start the Dear ImGui frame
-        //     ImGui_ImplOpenGL3_NewFrame();
-        //     ImGui_ImplGlfw_NewFrame();
-        //     ImGui::NewFrame();
-        //     // if (show_demo_window)
-        //     //     ImGui::ShowDemoWindow(&show_demo_window);
-        //
-        //     ImGui::Begin("MY WINDOW!");                          // Create a window called "Hello, world!" and append into it.
-        //     string tt = "time: "+std::to_string(glfwGetTime()-startTime);
-        //     ImGui::Text(tt.c_str());
-        //     if (ImGui::Button("Hide mouse"))
-        //         toggle_mouse();
-        //     if (ImGui::Button("Wireframe"))
-        //         toggle_wireframe();
-        //
-        //     ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
-        //     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        //     ImGui::End();
-        // }
-        //
-        // // Rendering
-        // ImGui::Render();
-        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        // --- IMGUI
+        {
+            // Start the Dear ImGui frame
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            // if (show_demo_window)
+            //     ImGui::ShowDemoWindow(&show_demo_window);
+
+            ImGui::Begin("MY WINDOW!");                          // Create a window called "Hello, world!" and append into it.
+            string tt = "time: "+std::to_string(glfwGetTime()-startTime);
+            ImGui::Text(tt.c_str());
+            if (ImGui::Button("Hide mouse"))
+                toggle_mouse();
+            if (ImGui::Button("Wireframe"))
+                toggle_wireframe();
+
+            ImGui::SliderFloat("offset",&offset, -1.0f,1.0f);
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+        }
+
+        // Rendering
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // -- swab buffers
         glfwSwapBuffers(window);
@@ -256,5 +258,8 @@ void toggle_wireframe() {
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         toggle_mouse();
+    }
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        toggle_wireframe();
     }
 }
