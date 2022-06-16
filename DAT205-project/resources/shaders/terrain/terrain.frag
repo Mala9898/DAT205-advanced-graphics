@@ -9,32 +9,46 @@ in vec3 Position;
 uniform sampler2D myTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D textureRockGround;
+uniform sampler2D textureRockGrass;
 uniform float tMin;
 uniform float tMax;
 uniform vec3 viewPos;
 uniform mat4 model;
 uniform mat4 view;
 
+//credit: https://github.com/glslify/glsl-easings
+float elasticInOut(float t) {
+    return t < 0.5
+    ? 0.5 * sin(+13.0 * 1.5707 * 2.0 * t) * pow(2.0, 10.0 * (2.0 * t - 1.0))
+    : 0.5 * sin(-13.0 * 1.5707 * ((2.0 * t - 1.0) + 1.0)) * pow(2.0, -10.0 * (2.0 * t - 1.0)) + 1.0;
+}
+
 void main() {
-    float amplitude = tMax - tMin;
-    float h = Height/(amplitude/2);
+    float amplitude = abs(tMax) + abs(tMin);
+    float h = (Height*3)/(amplitude);
 //    vec3 bottom = vec3(0.156, 0.109, 0.043); //brown
     vec3 bottom = vec3(0.0, 0.0, 0.0); //brown
     vec3 top = vec3(0.058, 1, 0.266); // green
 //    vec3 rock = texture(myTexture, TexCoords*50).xyz; // tiling
-    vec3 rock = texture(myTexture, TexCoords*20).xyz; // tiling
-    vec3 rocGround = texture(textureRockGround, TexCoords*20).xyz;
+    int tilingFactor = 100;
+
+    vec3 rock = texture(textureRockGround, TexCoords*tilingFactor).xyz; // tiling
+    vec3 rocGround = texture(textureRockGrass, TexCoords*tilingFactor).xyz;
+    vec3 rocClay = texture(myTexture, TexCoords*tilingFactor).xyz;
 
 
     vec3 n = texture(myTexture, TexCoords).xyz;
 //    FragColor = vec4(h, h, h, 1.0);
-    FragColor = vec4(mix(rock, rocGround, h),1);
+//    vec3 albedo = mix(rock, rocGround, h);
+    vec3 temp = mix(rock, rocGround, elasticInOut(h));
+    vec3 albedo = mix (temp, rocClay, h);
 
-//    vec3 ambient = vec3(0.2,0.2,0.2) *rock;
-//
-//    vec3 lightDir = normalize(vec3(30, 100,0)-Position);
-//    vec3 diffuse = vec3(1,1,1)* max(dot(lightDir, n),0) * rock;
-//
+
+    vec3 ambient = vec3(0.2,0.2,0.2) *albedo;
+
+    vec3 lightDir = normalize(vec3(30, 100,0)-Position);
+    vec3 diffuse = vec3(1,1,1)* max(dot(lightDir, n),0) * albedo;
+
 //    vec3 viewDir = normalize(viewPos-Position);
 //    vec3 reflectDir = reflect(-lightDir, n); // reflect about normal
 //    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32); // last value is "shininess of highlight"
@@ -42,4 +56,7 @@ void main() {
 //    vec3 specular = min(spec,1)*vec3(0.1,0.1,0.1);//vec3(texture(material.specular, TexCoords)); //*material.specular;
 
 //    FragColor = vec4(diffuse+ambient+specular, 1);
+    FragColor = vec4(ambient+diffuse, 1);
+//    if (Height>10)
+//        FragColor = vec4(1,0,0, 1);
 }

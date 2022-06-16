@@ -210,10 +210,32 @@ int main() {
         stbi_image_free(dataRock); // free image memory
 
     unsigned int textureRockGround;
-    glGenTextures(1, &textureRockGround);        // generate texture (#number of textures, textureID(s))
-    texture_name = "textures/rock_ground.png";
+        glGenTextures(1, &textureRockGround);        // generate texture (#number of textures, textureID(s))
+        texture_name = "textures/rock_ground.png";
+        glActiveTexture(GL_TEXTURE0);                 // activate the texture unit first before binding texture
+        glBindTexture(GL_TEXTURE_2D, textureRockGround); // bind texture onto texture unit #0 (GL_TEXTURE0)
+        // glActiveTexture(GL_TEXTURE1);              // set additional textures, 0,...,15
+        // glBindTexture(GL_TEXTURE_2D, texture2);
+        // set texture wrapping
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        stbi_set_flip_vertically_on_load(true);
+
+        int width4, height4, nrChannels4;
+        unsigned char *dataRockGround = stbi_load(texture_name.c_str(), &width4, &height4, &nrChannels4, STBI_rgb_alpha);
+
+        if (dataRockGround) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width4, height4, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRockGround); // texture WORKS
+            glGenerateMipmap(GL_TEXTURE_2D); // generate mipmaps
+            std::cout << "loaded texture: "+ texture_name << std::endl;
+        }
+        stbi_image_free(dataRockGround); // free image memory
+
+    unsigned int textureRockGrass;
+    glGenTextures(1, &textureRockGrass);        // generate texture (#number of textures, textureID(s))
+    texture_name = "textures/rockGrass.png";
     glActiveTexture(GL_TEXTURE0);                 // activate the texture unit first before binding texture
-    glBindTexture(GL_TEXTURE_2D, textureRockGround); // bind texture onto texture unit #0 (GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, textureRockGrass); // bind texture onto texture unit #0 (GL_TEXTURE0)
     // glActiveTexture(GL_TEXTURE1);              // set additional textures, 0,...,15
     // glBindTexture(GL_TEXTURE_2D, texture2);
     // set texture wrapping
@@ -221,15 +243,15 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     stbi_set_flip_vertically_on_load(true);
 
-    int width4, height4, nrChannels4;
-    unsigned char *dataRockGround = stbi_load(texture_name.c_str(), &width4, &height4, &nrChannels4, STBI_rgb_alpha);
+    int width5, height5, nrChannels5;
+    unsigned char *dataRockGrass = stbi_load(texture_name.c_str(), &width5, &height5, &nrChannels5, STBI_rgb_alpha);
 
-    if (dataRock) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width4, height4, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRockGround); // texture WORKS
+    if (dataRockGround) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width5, height5, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRockGrass); // texture WORKS
         glGenerateMipmap(GL_TEXTURE_2D); // generate mipmaps
         std::cout << "loaded texture: "+ texture_name << std::endl;
     }
-    stbi_image_free(dataRockGround); // free image memory
+    stbi_image_free(dataRockGrass); // free image memory
 
     // ---  create "normal" texture
     unsigned int terrainNormalTexture;
@@ -304,6 +326,7 @@ int main() {
         heightMapShader.setInt("myTexture", 2);
         heightMapShader.setInt("normalTexture", 3);
         heightMapShader.setInt("textureRockGround", 4);
+        heightMapShader.setInt("textureRockGrass", 5);
         heightMapShader.setVec3("viewPos", camera.camPos);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, textureRock);
@@ -311,6 +334,8 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, textureRockGround);
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, textureRockGrass);
 
         // render the cube
         glBindVertexArray(terrainVAO);
