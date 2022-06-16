@@ -324,6 +324,7 @@ int main() {
         // ------------------ <scene> ------------------
         glm::mat4 view = glm::lookAt(camera.camPos, camera.camPos + camera.camFront, camera.camY);
         mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
+        mat4 terrainModelMatrix = translate(mat4(1), vec3(0.0f, waterOffset, 0.0f));
         mat4 MVP = projection*view*model;
 
         /* --- refraction --- */
@@ -337,7 +338,7 @@ int main() {
             glFrontFace(GL_CW);
             heightMapShader.use();
             heightMapShader.setMat4("MVP", &MVP);
-            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("model", &terrainModelMatrix);
             heightMapShader.setMat4("view", &view);
             heightMapShader.setInt("myTexture", 2);
             heightMapShader.setInt("normalTexture", 3);
@@ -378,11 +379,11 @@ int main() {
             cube.Draw(cubeShader);
 
             // --- <render mountain 🏔> ----
-            glFrontFace(GL_CCW);
+            glFrontFace(GL_CW);
             heightMapShader.use();
             // heightMapShader.setMat4("MVP", &MVP);
             heightMapShader.setMat4("projection", &projection);
-            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("model", &terrainModelMatrix);
             heightMapShader.setMat4("view", &vMat);
             heightMapShader.setInt("myTexture", 2);
             heightMapShader.setInt("normalTexture", 3);
@@ -432,17 +433,20 @@ int main() {
             // waterShader.setVec3("lightPos", lightPos);
             // floorModelMatrix = translate(floorModelMatrix, vec3(0.0f, 0.0f, -0.2f));
             float floorScaleFactor = 100.0f;
-            mat4 floorModelMatrix = translate(mat4(1), vec3(0.0f, waterOffset, 0.0f))
-                    *glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
-                    *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
+            // mat4 floorModelMatrix = translate(mat4(1), vec3(0.0f, waterOffset, 0.0f))
+            //         *glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+            //         *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
+            mat4 floorModelMatrix = glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+                                *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
 
-            water.draw(view, translate(mat4(1), vec3(0.0f, waterOffset,0.0f))*floorModelMatrix );
+            glFrontFace(GL_CCW);
+            water.draw(view, translate(mat4(1), vec3(0.0f, 0.0f,0.0f))*floorModelMatrix );
 
             // --- <render mountain 🏔> ----
             glFrontFace(GL_CW);
             heightMapShader.use();
             heightMapShader.setMat4("MVP", &MVP);
-            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("model", &terrainModelMatrix);
             heightMapShader.setMat4("view", &view);
             heightMapShader.setInt("myTexture", 2);
             heightMapShader.setInt("normalTexture", 3);
