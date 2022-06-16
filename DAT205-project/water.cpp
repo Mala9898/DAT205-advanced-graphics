@@ -43,10 +43,8 @@ ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 GLFWwindow *window = nullptr;
 
 float surfacePlaneHeight = 1.0f;
-float floorPlaneHeight = 0.0f;
 unsigned int refractFBO, refLECT_FBO;
 unsigned int refractTextureId, reflectTextureID; // ATTACHMENTS
-GLuint renderingProgramSURFACE, renderingProgramFLOOR, renderingProgramCubeMap;
 Shader waterFloorShader;
 Shader waterShader;
 
@@ -131,7 +129,7 @@ int main() {
             gizmo.draw(projection*vMat);
             cubeShader.use();
             cubeShader.setMat4("view", &vMat);
-            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 1.0f,0.0f));
+            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 2.0f,0.0f));
             cubeShader.setMat4("model",&cubeModelM);
             cube.Draw(cubeShader);
 

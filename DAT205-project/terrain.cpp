@@ -19,6 +19,7 @@
 #include "includes/utils/Model.h"
 #include "utils/Cube.h"
 #include "utils/PerlinNoise.h"
+#include "utils/Plane.h"
 // #include "utils/Plane.h"
 // #include "utils/Cube.h"
 
@@ -27,6 +28,7 @@ void mouse_callback(GLFWwindow* window, double x, double y);
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void toggle_mouse ();
 void toggle_wireframe();
+void createFBOs();
 
 using std::vector, std::string;
 using glm::vec3,glm::vec4, glm::mat4, glm::scale, glm::translate;
@@ -42,6 +44,12 @@ bool show_demo_window = true;
 bool show_another_window = false;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 GLFWwindow *window = nullptr;
+
+float surfacePlaneHeight = 1.0f;
+unsigned int refractFBO, refLECT_FBO;
+unsigned int refractTextureId, reflectTextureID; // ATTACHMENTS
+Shader waterFloorShader;
+Shader waterShader;
 
 float blendFactor = 0.194f;
 float blendFactor2 = -6.81f;
@@ -62,6 +70,15 @@ int main() {
     ImGuiIO& io = init_IMGUI(window);
     float offset = 0.0f;
 
+    /* --- water init --- */
+    waterFloorShader = Shader("shaders/water/water.vert", "shaders/water/waterFloor.frag");
+    waterShader = Shader("shaders/water/water.vert", "shaders/water/water2.frag");
+    // waterShader = Shader("shaders/tests/display.vert", "shaders/tests/display.frag");
+    Plane waterFloor (waterFloorShader, projection);
+    Plane water (waterShader, projection);
+    createFBOs();
+
+    glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     // glDisable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -308,49 +325,149 @@ int main() {
         mat4 model = translate(mat4(1), vec3(0.0f,offset,0.0f));
         mat4 MVP = projection*view*model;
 
+        /* --- refraction --- */
+        glBindFramebuffer(GL_FRAMEBUFFER, refractFBO);
+            // glDisable(GL_DEPTH_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        /* --- default framebuffer --- */
-        glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the color above
-
-        gizmo.draw(MVP);
-        cubeShader.use();
-        cubeShader.setMat4("view", &view);
-        // mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 3.0f,0.0f));
-        cubeShader.setMat4("model",&model);
-        cube.Draw(cubeShader);
+            float floorScaleFactor = 100.0f;
+            mat4 floorModelMatrix = glm::rotate(mat4(1), -3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+                *scale(mat4(1), vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
 
 
-        // be sure to activate shader when setting uniforms/drawing objects
-        heightMapShader.use();
-        heightMapShader.setMat4("MVP", &MVP);
-        heightMapShader.setMat4("model", &model);
-        heightMapShader.setMat4("view", &view);
-        heightMapShader.setInt("myTexture", 2);
-        heightMapShader.setInt("normalTexture", 3);
-        heightMapShader.setInt("textureRockGround", 4);
-        heightMapShader.setInt("textureRockGrass", 5);
-        heightMapShader.setVec3("viewPos", camera.camPos);
-        heightMapShader.setFloat("blendFactor", blendFactor);
-        heightMapShader.setFloat("blendFactor2", blendFactor2);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, textureRock);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, textureRockGround);
-        glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, textureRockGrass);
 
-        // render the cube
-        glBindVertexArray(terrainVAO);
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        for(unsigned strip = 0; strip < numStrips; strip++){
-            glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
-                           numTrisPerStrip+2,   // number of indices to render
-                           GL_UNSIGNED_INT,     // index data type
-                           (void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip)); // offset to starting index
-        }
+            gizmo.draw(MVP);
+            // --- <render mountain 🏔> ----
+            glFrontFace(GL_CW);
+            heightMapShader.use();
+            heightMapShader.setMat4("MVP", &MVP);
+            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("view", &view);
+            heightMapShader.setInt("myTexture", 2);
+            heightMapShader.setInt("normalTexture", 3);
+            heightMapShader.setInt("textureRockGround", 4);
+            heightMapShader.setInt("textureRockGrass", 5);
+            heightMapShader.setVec3("viewPos", camera.camPos);
+            heightMapShader.setFloat("blendFactor", blendFactor);
+            heightMapShader.setFloat("blendFactor2", blendFactor2);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, textureRock);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, textureRockGround);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, textureRockGrass);
+
+            glBindVertexArray(terrainVAO);
+            for(unsigned strip = 0; strip < numStrips; strip++){
+                glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
+            }
+            // --- </render mountain 🏔> ----
+
+        /* --- 🪞 reflect --- */
+        glBindFramebuffer(GL_FRAMEBUFFER, refLECT_FBO);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            vec3 flip(camera.camPos.x, 1-camera.camPos.y, camera.camPos.z);
+            mat4 vMat = glm::lookAt(flip, flip+camera.camFrontFlipped, camera.camYflippped);
+            // -- render "reflected" scene
+
+            gizmo.draw(projection*vMat);
+            cubeShader.use();
+            cubeShader.setMat4("view", &vMat);
+            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 1.0f,0.0f));
+            cubeShader.setMat4("model",&cubeModelM);
+            cube.Draw(cubeShader);
+            // --- <render mountain 🏔> ----
+            glFrontFace(GL_CW);
+            heightMapShader.use();
+            heightMapShader.setMat4("MVP", &MVP);
+            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("view", &view);
+            heightMapShader.setInt("myTexture", 2);
+            heightMapShader.setInt("normalTexture", 3);
+            heightMapShader.setInt("textureRockGround", 4);
+            heightMapShader.setInt("textureRockGrass", 5);
+            heightMapShader.setVec3("viewPos", camera.camPos);
+            heightMapShader.setFloat("blendFactor", blendFactor);
+            heightMapShader.setFloat("blendFactor2", blendFactor2);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, textureRock);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, textureRockGround);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, textureRockGrass);
+
+            glBindVertexArray(terrainVAO);
+            for(unsigned strip = 0; strip < numStrips; strip++){
+                glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
+            }
+            // --- </render mountain 🏔> ----
+
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+            glFrontFace(GL_CCW);
+            /* --- default framebuffer --- */
+            glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the color above
+
+            gizmo.draw(MVP);
+            cubeShader.use();
+            cubeShader.setMat4("view", &view);
+            // mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 3.0f,0.0f));
+            cubeShader.setMat4("model",&model);
+            cube.Draw(cubeShader);
+
+            // // 1. render water
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, reflectTextureID);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, refractTextureId);
+
+            waterShader.use();
+            waterShader.setInt("textureReflect", 0);
+            waterShader.setInt("textureRefract", 1);
+            // // waterShader.setInt("textureRefract", 1);
+            // waterShader.setVec3("lightPos", lightPos);
+            // floorModelMatrix = translate(floorModelMatrix, vec3(0.0f, 0.0f, -0.2f));
+            // float floorScaleFactor = 5.0f;
+            // mat4 floorModelMatrix = glm::rotate(mat4(1), 3.14f/2.0f, vec3(1.0f,0.0f,0.0f))
+            //         *scale(floorModelMatrix, vec3(floorScaleFactor, floorScaleFactor,floorScaleFactor));
+
+            water.draw(view, floorModelMatrix);
+
+            // --- <render mountain 🏔> ----
+            glFrontFace(GL_CW);
+            heightMapShader.use();
+            heightMapShader.setMat4("MVP", &MVP);
+            heightMapShader.setMat4("model", &model);
+            heightMapShader.setMat4("view", &view);
+            heightMapShader.setInt("myTexture", 2);
+            heightMapShader.setInt("normalTexture", 3);
+            heightMapShader.setInt("textureRockGround", 4);
+            heightMapShader.setInt("textureRockGrass", 5);
+            heightMapShader.setVec3("viewPos", camera.camPos);
+            heightMapShader.setFloat("blendFactor", blendFactor);
+            heightMapShader.setFloat("blendFactor2", blendFactor2);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, textureRock);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, textureRockGround);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, textureRockGrass);
+
+            glBindVertexArray(terrainVAO);
+            for(unsigned strip = 0; strip < numStrips; strip++){
+                glDrawElements(GL_TRIANGLE_STRIP,numTrisPerStrip+2,GL_UNSIGNED_INT,(void*)(sizeof(unsigned) * (numTrisPerStrip+2) * strip));
+            }
+            // --- </render mountain 🏔> ----
+
 
 
         // ------------------ </scene> ------------------
@@ -414,4 +531,52 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         toggle_wireframe();
     }
+}
+
+void createFBOs() { // called once from init()
+    GLuint bufferId[1];
+
+    glGenFramebuffers(1, &refractFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, refractFBO);
+    // create a color attachment texture
+    // unsigned int textureColorbuffer;
+    glGenTextures(1, &refractTextureId);
+    glBindTexture(GL_TEXTURE_2D, refractTextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, refractTextureId, 0);
+
+    // create & attach depth buffer
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: refract FrameBuffer incomplete" << std::endl;
+
+    // initialize reflection framebuffer
+    glGenFramebuffers(1, &refLECT_FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, refLECT_FBO);
+    glGenTextures(1, &reflectTextureID);
+    glBindTexture(GL_TEXTURE_2D, reflectTextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflectTextureID, 0);
+
+    glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+    // create & attach depth buffer
+    unsigned int rboDepth2;
+    glGenRenderbuffers(1, &rboDepth2);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth2);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth2);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR: reflect FrameBuffer incomplete" << std::endl;
 }
