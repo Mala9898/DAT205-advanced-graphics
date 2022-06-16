@@ -99,6 +99,7 @@ int main() {
     float yScale = 16.0f / 256.0f, yShift = 5.0f;
     int rez = 1;
     unsigned bytePerPixel = nrChannels2;
+
     for(int i = 0; i < height; i++){
         for(int j = 0; j < width; j++){
             unsigned char* pixelOffset = dataMask + (j + width * i) * bytePerPixel;
@@ -113,7 +114,7 @@ int main() {
             const double noise2 = 0.0f;//perlin.noise2D_01((i * oct2), (j * oct2));
             const double noise3 = 0.1f*(perlin.noise2D_01((i * oct3), (j * oct3)));
             double totalNoise = noise1+noise2+noise3;
-            double toAdd = ((30.0f*totalNoise-20.0f)*y)/256.0f;
+            double toAdd = ((30.0f*totalNoise-10.0f)*y)/256.0f;
             if(toAdd>tMax)
                 tMax = toAdd;
             if(toAdd <tMin)
@@ -124,6 +125,25 @@ int main() {
         }
     }
     stbi_image_free(data);
+    float* normalMapArr = new float[3*100*100];
+    for(auto i = 0; i < 100; i++) {
+        for(auto j = 0; j < 100; j++) {
+            // i = z
+            // j = x
+            int x =j;
+            int z = i;
+            float heightL = vertices[3*((x-1)*100 +z) + 1]; //getHeight(x-1, z, generator);
+            float heightR = vertices[3*((x+1)*100 +z) + 1];
+            float heightD = vertices[3*((x)*100 +z-1) + 1];
+            float heightU = vertices[3*((x)*100 +z+1) + 1];
+            vec3 normal (heightL - heightR, 2.0f, heightD - heightU);
+            normal = glm::normalize(normal);
+
+            normalMapArr[3*(i*100 + j)+0] = normal.x;
+            normalMapArr[3*(i*100 + j)+1] = normal.y;
+            normalMapArr[3*(i*100 + j)+2] = normal.z;
+        }
+    }
 
     // --- texcoords
     std::vector<float> texCoords;
@@ -173,25 +193,55 @@ int main() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         stbi_set_flip_vertically_on_load(true);
-        // container2.png
-        /*
-         * last parameter: desired channels
-         * STBI_default = 0, STBI_grey = 1, STBI_grey_alpha = 2, STBI_rgb = 3, STBI_rgb_alpha = 4
-         */
+
         int width3, height3, nrChannels3;
         unsigned char *dataRock = stbi_load(texture_name.c_str(), &width3, &height3, &nrChannels3, STBI_rgb_alpha);
-        if (data) {
-            // load image into texture
-            // jpg
-            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            // png
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width3, height3, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRock);
+
+        if (dataRock) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width3, height3, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRock); // texture WORKS
+            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 100, 100, 0, GL_RGBA, GL_FLOAT, testArr); // 4 array WORKS
+            // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 100, 100, 0, GL_RGB, GL_FLOAT, normalMapArr); // normal
+
             glGenerateMipmap(GL_TEXTURE_2D); // generate mipmaps
             std::cout << "loaded texture: "+ texture_name << std::endl;
         } else {
             std::cout << "failed to load texture" << std::endl;
         }
         stbi_image_free(dataRock); // free image memory
+
+    unsigned int textureRockGround;
+    glGenTextures(1, &textureRockGround);        // generate texture (#number of textures, textureID(s))
+    texture_name = "textures/rock_ground.png";
+    glActiveTexture(GL_TEXTURE0);                 // activate the texture unit first before binding texture
+    glBindTexture(GL_TEXTURE_2D, textureRockGround); // bind texture onto texture unit #0 (GL_TEXTURE0)
+    // glActiveTexture(GL_TEXTURE1);              // set additional textures, 0,...,15
+    // glBindTexture(GL_TEXTURE_2D, texture2);
+    // set texture wrapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    stbi_set_flip_vertically_on_load(true);
+
+    int width4, height4, nrChannels4;
+    unsigned char *dataRockGround = stbi_load(texture_name.c_str(), &width4, &height4, &nrChannels4, STBI_rgb_alpha);
+
+    if (dataRock) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width4, height4, 0, GL_RGBA, GL_UNSIGNED_BYTE, dataRockGround); // texture WORKS
+        glGenerateMipmap(GL_TEXTURE_2D); // generate mipmaps
+        std::cout << "loaded texture: "+ texture_name << std::endl;
+    }
+    stbi_image_free(dataRockGround); // free image memory
+
+    // ---  create "normal" texture
+    unsigned int terrainNormalTexture;
+    glGenTextures(1, &terrainNormalTexture);        // generate texture (#number of textures, textureID(s))
+        glActiveTexture(GL_TEXTURE0);                 // activate the texture unit first before binding texture
+        glBindTexture(GL_TEXTURE_2D, terrainNormalTexture); // bind texture onto texture unit #0 (GL_TEXTURE0)
+        // set texture wrapping
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 100, 100, 0, GL_RGB, GL_FLOAT, normalMapArr); // normal
+
+
     glGenBuffers(1, &texVBO);
     glBindBuffer(GL_ARRAY_BUFFER, texVBO);
     glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), &texCoords[0], GL_STATIC_DRAW);
@@ -250,9 +300,17 @@ int main() {
         heightMapShader.use();
         heightMapShader.setMat4("MVP", &MVP);
         heightMapShader.setMat4("model", &model);
+        heightMapShader.setMat4("view", &view);
         heightMapShader.setInt("myTexture", 2);
+        heightMapShader.setInt("normalTexture", 3);
+        heightMapShader.setInt("textureRockGround", 4);
+        heightMapShader.setVec3("viewPos", camera.camPos);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, textureRock);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, terrainNormalTexture);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, textureRockGround);
 
         // render the cube
         glBindVertexArray(terrainVAO);
