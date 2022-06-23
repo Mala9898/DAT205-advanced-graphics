@@ -367,7 +367,7 @@ int main() {
             gizmo.draw(projection*vMat);
             cubeShader.use();
             cubeShader.setMat4("view", &vMat);
-            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 1.0f,0.0f));
+            mat4 cubeModelM = translate(mat4(1), vec3(0.0f, 2.9f,0.0f));
             cubeShader.setMat4("model",&cubeModelM);
             cube.Draw(cubeShader);
 
